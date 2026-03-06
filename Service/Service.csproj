@@ -1,0 +1,75 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Report -->
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
+    <PackageReference Include="ClosedXML.Report" Version="0.2.10" />
+    <PackageReference Include="HtmlToOpenXml.dll" Version="3.2.2" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.2.0" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.72" />
+
+    <!-- Kafka -->
+    <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <PackageReference Include="KafkaFlow" Version="3.1.0" />
+    <PackageReference Include="KafkaFlow.LogHandler.Console" Version="3.1.0" />
+    <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" Version="3.1.0" />
+    <PackageReference Include="KafkaFlow.Serializer.Json" Version="1.5.8" />
+    <PackageReference Include="KafkaFlow.Serializer.JsonCore" Version="3.1.0" />
+
+    <PackageReference Include="DotNetEnv" Version="3.0.0" />
+    <PackageReference Include="SMBLibrary" Version="1.5.4.1" />
+    <PackageReference Include="FastReport.Core.Skia.Demo" Version="2024.2.3" />
+    <PackageReference Include="FastReport.Data.Excel" Version="2024.2.2" />
+    <PackageReference Include="FastReport.OpenSource.Export.PdfSimple" Version="2024.2.1" />
+    <PackageReference Include="FastReport.OpenSource.Web" Version="2024.2.1" />
+    <PackageReference Include="FastReport.Web.Skia.Demo" Version="2024.2.3" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+    <PackageReference Include="OpenXmlPowerTools" Version="4.5.3.2" />
+    <PackageReference Include="SharpSevenZip" Version="2.0.11" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" />
+    <PackageReference Include="Squid-Box.SevenZipSharp" Version="1.6.2.24" />
+    <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
+    <PackageReference Include="Aspose.Zip" Version="22.8.0" />
+    <PackageReference Include="MailKit" Version="4.7.1.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.1" />
+    <PackageReference Include="HtmlToOpenXml.dll" Version="2.0.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.2.0" />
+
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <!-- <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
+    <PackageReference Include="KafkaFlow" Version="3.1.0" />
+    <PackageReference Include="KafkaFlow.LogHandler.Console" Version="3.1.0" />
+    <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" Version="3.1.0" />
+    <PackageReference Include="KafkaFlow.Serializer.Json" Version="1.5.8" />
+    <PackageReference Include="KafkaFlow.Serializer.JsonCore" Version="3.1.0" /> -->
+
+    <Reference Include="iFinancing360.Service.Helper">
+      <HintPath>../Libraries/ServiceHelper/iFinancing360.Service.Helper.dll</HintPath>
+    </Reference>
+    <Reference Include="iFinancing360.Helper">
+      <HintPath>../Libraries/Helper/iFinancing360.Helper.dll</HintPath>
+    </Reference>
+    <Reference Include="iFinancing360.API.Helper">
+        <HintPath>..\Libraries\APIHelper\iFinancing360.API.Helper.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\Domain.csproj" />
+   <Reference Include="iFinancing360.Service.Helper">
+    <HintPath>../Libraries/ServiceHelper/iFinancing360.Service.Helper.dll</HintPath>
+   </Reference>
+   <Reference Include="iFinancing360.Helper">
+    <HintPath>../Libraries/Helper/iFinancing360.Helper.dll</HintPath>
+   </Reference>
+  </ItemGroup>
+
+</Project>

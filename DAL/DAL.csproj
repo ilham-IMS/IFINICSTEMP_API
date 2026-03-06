@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.24" />
+    <PackageReference Include="DotNetEnv" Version="3.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
+    <PackageReference Include="MySql.Data" Version="8.0.20" />
+    <PackageReference Include="Npgsql" Version="8.0.1" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="3.21.130" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+    <PackageReference Include="System.DirectoryServices.Protocols" Version="8.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+		
+   <Reference Include="iFinancing360.Helper">
+    <HintPath>../Libraries/Helper/iFinancing360.Helper.dll</HintPath>
+   </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\Domain.csproj" />
+		<Reference Include="iFinancing360.DAL.Helper">
+        <HintPath>..\Libraries\DALHelper\iFinancing360.DAL.Helper.dll</HintPath>
+    </Reference>
+   <Reference Include="iFinancing360.Helper">
+    <HintPath>../Libraries/Helper/iFinancing360.Helper.dll</HintPath>
+   </Reference>
+  </ItemGroup>
+
+</Project>

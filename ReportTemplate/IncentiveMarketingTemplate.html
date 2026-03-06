@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inquiry Client Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+        }
+        p, h1, h2, h3 {
+            padding: 0;
+            margin: 0;
+        }
+        .watermark-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: -10;
+        }
+
+        .watermark-logo {
+            max-width: 500px;
+            width: 60vw;
+            opacity: 0.06;
+            filter: blur(1px);
+            pointer-events: none;
+        }
+        
+        header {
+            padding: 0 14px;
+            display: flex;
+            gap: 32px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header img {
+            height: 50px;
+        }
+
+        .header-main-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-main-info p span {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        header .report-print-date {
+            font-size: 1em;
+            min-width: 100px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #5b5b5b;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        header .report-print-date-divider {
+            display: none;
+        }
+        footer {
+            position: relative;
+            bottom: 0;
+            width: 100%;
+            padding: 14px 0 0 0;
+            font-size: 0.85em;
+            border-top: 1px solid #8C8C8C;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer p {
+            padding: 0 14px;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f5f5f5;
+        }
+        
+        .right {
+            text-align: right;
+        }
+        
+        .center {
+            text-align: center;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="watermark-container">
+        <img src="images/logo.png" alt="iFinancing 360 Logo" class="watermark-logo" />
+    </div>
+
+    <header style="margin-bottom: 16px;">
+        {{ImageLogo}}
+        <div class="header-main-info">
+            <p class="company-name" style="font-size: 1.35em; font-weight: 600;">{{CompanyName}}</p>
+            <report-title style="font-size: 1.5em; font-weight: bold;">{{ReportTitle}}</report-title>
+            <report-title style="font-size: 1.2em; font-weight: bold;">Periode {{PeriodeFrom}} - {{PeriodeTo}}</report-title>
+            <report-filter><!-- report-filter --></report-filter>
+        </div>
+        <div class="report-print-date">
+            <span style="font-weight: bold;">Print Date:</span>
+            <span>{{PrintDate}}</span>
+            <span class="report-print-date-divider"> - </span>
+            <span>{{PrintTime}}</span>
+        </div>
+    </header>
+
+    <hr>
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px; display: table; table-layout: fixed; position: relative; z-index: 1;">
+        <thead style="display: table-header-group;">
+            <tr style="display: table-row;">
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Agreement No</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Approved Date</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Disbursement Date</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Period</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Payment Method</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Currency</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Net Finance</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Interest Rate</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Cost Rate</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Interest Margin</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">BPE Ratio</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Insurance Premium Usage Ratio</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">BPE Effect</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">BPE Income / (Expense)</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Non Interest Effet</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Interest Margin / Profit Before Marketing Incentive</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Marketing Incentive Ratio / Amount</th>
+                <th style="color: #333; padding: 8px; text-align: left; font-weight: 600; border: 1px solid #000; display: table-cell;">Marketing Incentive Ratio / Finance Amount</th>
+            </tr>
+        </thead>
+        <tbody style="display: table-row-group; position: relative; z-index: 1;">
+            {{table_rows}}
+        </tbody>
+    </table>
+
+    <footer style="border-top: 0.75px solid #dadada; margin-top: 16px;">
+        <p>&copy; 2025 PT. Web Dev Ceria. All rights reserved.</p>
+        <p style="text-align: right;">
+            (021) 39730397 <br />
+            Alam Sutera, 5th Floor, Suite 01-17 The Smith @, RT.002/RW.003, Kunciran, Kec. Pinang, Kota Tangerang, Banten 15315
+        </p>
+    </footer>
+</body>
+</html>

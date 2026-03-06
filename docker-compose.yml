@@ -1,0 +1,20 @@
+version: "3.7"
+services:
+    ifinics_api:
+        image: ifinics_api:latest
+        container_name: ifinics_api
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Production
+            - ASPNETCORE_URLS=http://+:8008
+            - DATABASE_TYPE=PostgreSQL
+            - DATABASE_CONNECTION_STRING=Host=147.139.191.88,5432;Username=postgres;Password=Nimda321;Database=IFINSVY
+            - KEY=IMS-Super-Secret
+            - IV=1234567890123456
+        ports:
+            - "8008:8008"
+        networks:
+            - mynetwork
+
+networks:
+    mynetwork:
+        external: true

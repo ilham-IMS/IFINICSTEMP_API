@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dokumen Contoh</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 14px;
+      font-size: 14px;
+    }
+
+    p,
+    h1,
+    h2,
+    h3 {
+      padding: 0;
+      margin: 0;
+    }
+
+    header {
+      display: flex;
+      gap: 32px;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #838383;
+      padding-bottom: 14px;
+    }
+
+    header img {
+      height: 80px;
+    }
+
+    header .header-main-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-main-info p {
+      font-size: 1em;
+    }
+
+    .header-main-info p span {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    header .report-print-date {
+      font-size: 1em;
+
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #5B5B5B;
+
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    main {
+      padding-bottom: 32px;
+    }
+
+    table {
+      font-size: 1em;
+
+      width: 100%;
+      min-width: 1080px;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    table,
+    th,
+    td {
+      border: 1px solid #bdc3c7;
+    }
+
+    th,
+    td {
+      padding: 6px;
+    }
+
+    th {
+      background-color: #C6DCFE;
+    }
+
+    footer {
+      position: relative;
+      bottom: 0;
+      left: 14px;
+      right: 14px;
+      padding: 14px 0;
+      font-size: 0.85em;
+      border-top: 1px solid #8C8C8C;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .watermark-container {
+      position: absolute;
+      top: 100px;
+      /* jarak dari atas halaman, bisa kamu sesuaikan */
+      left: 0;
+      width: 100%;
+      text-align: center;
+      z-index: 0;
+      /* pastikan di belakang isi tabel */
+    }
+
+    .watermark-logo {
+      max-width: 500px;
+      width: 60%;
+      opacity: 0.06;
+      /* transparansi lembut */
+      filter: blur(1px);
+      /* biar agak halus */
+      pointer-events: none;
+      /* biar ga ganggu klik */
+    }
+  </style>
+</head>
+
+<body>
+  <div class="watermark-container">
+    <img src="images/logo.png" alt="iFinancing 360 Logo" class="watermark-logo">
+  </div>
+
+  <header>
+    <img src="mini-logo.png" alt="iFinancing 360 Logo" class="mini-logo">
+    <div class="header-main-info">
+      <h2>PT. INOVASI MITRA SEJATI</h2>
+      <h3>{{report_title}}</h3>
+      <div></div>
+    </div>
+    <div class="report-print-date">
+      <p style="font-weight: bold;">Print Date:</p>
+      <p>{{print_date}}</p>
+      <p>{{print_time}}</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- Data -->
+  </main>
+
+  <footer>
+    <p>&copy; 2025 PT. Web Dev Ceria. All rights reserved.</p>
+    <p style="text-align: right;">(021) 39730397 <br>
+      Alam Sutera, 5th Floor, Suite 01-17 The Smith @, RT.002/RW.003, Kunciran, Kec. Pinang, Kota Tangerang, Banten
+      15315</p>
+  </footer>
+
+</body>
+
+</html>
