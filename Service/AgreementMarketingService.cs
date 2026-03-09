@@ -6,6 +6,8 @@ using iFinancing360.Service.Helper;
 using DotNetEnv;
 using iFinancing360.Helper;
 using System.Data;
+using iFinancing360.Service.Helper.SMBClient;
+using FastReport.AdvMatrix;
 
 namespace Service
 {
@@ -129,14 +131,14 @@ namespace Service
       }
     }
 
-    public async Task<FileDoc> GetPreview(AgreementMarketing dataAgreementMarketing, string ID)
+    public async Task<FileDoc> GetPreview(AgreementMarketing dataAgreementMarketing, string ID, List<AgreementFeeList> agreementFeeList)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
 
       try
       {
-        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction,"docx", ID, dataAgreementMarketing);
+        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction,"docx", ID, dataAgreementMarketing, agreementFeeList);
 
         transaction.Commit();
         return fileDoc;
@@ -149,7 +151,7 @@ namespace Service
       }
     }
 
-    private async Task<FileDoc> GenerateDocumentFromTemplate(IDbTransaction transaction, string outputFormat, string ID, AgreementMarketing dataAgreementMarketing)
+    private async Task<FileDoc> GenerateDocumentFromTemplate(IDbTransaction transaction, string outputFormat, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList)
     {
 
         
@@ -161,9 +163,17 @@ namespace Service
           throw new FileNotFoundException($"Template tidak ditemukan di path: {templatePath}", templatePath);
         }
 
+        // var file = await GetFile(dataAgreementMarketing.CompanyFileName!);
+
+        // // Convert file ke base64 untuk digunakan sebagai inline image
+        // string base64Image = Convert.ToBase64String(file?.Content!);
+        // string imageHtml = $"<img src=\"data:image/png;base64,{base64Image}\" alt=\"PT BOT FINANCE INDONESIA\" style=\"height: 50px;\" />";
+
         var data = new Dictionary<string, object?>
         {
           ["AgreementNo"] = dataAgreementMarketing.AgreementNo ?? "-",
+          ["CompanyName"] = dataAgreementMarketing.CompanyName ?? "-",
+          // ["CompanyLogo"] = base64Image,
           ["ClientName"] = dataAgreementMarketing.ClientName ?? "-",
           ["ApprovedDate"] = dataAgreementMarketing.ApprovedDate?.ToString("dd MMMM yyyy") ?? "-",
           ["DisbursementDate"] = dataAgreementMarketing.DisbursementDate?.ToString("dd MMMM yyyy") ?? "-",
@@ -186,20 +196,33 @@ namespace Service
           ["FinanceAmount"] = dataAgreementMarketing.FinanceAmount?.ToString("N2") ?? "0",
           ["PrintDate"] = DateTime.Now.ToString("dddd, MMMM d, yyyy"),
           ["PrintTime"] = DateTime.Now.ToString("h:mm tt"),
+          ["InsuranceRate"] = dataAgreementMarketing.InsuranceRate?.ToString("N2") ?? "0",
+          ["InterestAmount"] = dataAgreementMarketing.InterestAmount?.ToString("N2") ?? "0",
+          ["CostAmount"] = dataAgreementMarketing.CostAmount?.ToString("N2") ?? "0",
+          ["InterestMarginAmount"] = dataAgreementMarketing.InterestMarginAmount?.ToString("N2") ?? "0",
+          ["CCYRate"] = dataAgreementMarketing.CCYRate?.ToString("N2") ?? "0",
+          ["BPETotal"] = dataAgreementMarketing.BPETotal?.ToString("N2") ?? "0",
+          ["BPETotalAmount"] = dataAgreementMarketing.BPETotalAmount?.ToString("N2") ?? "0",
+          ["InsPremUsageRatio"] = dataAgreementMarketing.InsurancePremiumUsageRatio?.ToString("N2") ?? "0",
+          ["BPEIncomeExpense"] = dataAgreementMarketing.BPEIncomeIncentiveExpense?.ToString("N2") ?? "0",
+          ["NonIntName"] = dataAgreementMarketing.NonInterestName ?? "-",
+          ["NonIntExp"] = dataAgreementMarketing.NonInterestExpense?.ToString("N2") ?? "0",
+          ["NonIntEffRate"] = dataAgreementMarketing.NonInterestEffect?.ToString("N2") ?? "0",
+          ["NonIntEffAmount"] = dataAgreementMarketing.NonInterestEffectAmount?.ToString("N2") ?? "0",
+          ["ProfBeforeMarketingIncentive"] = dataAgreementMarketing.ProfitBeforeMarketingIncentive?.ToString("N2") ?? "0",
+          ["MarIncRatio"] = dataAgreementMarketing.MarketingIncentiveRatio?.ToString("N2") ?? "0",
+          ["IncAmount"] = dataAgreementMarketing.IncentiveAmount?.ToString("N2") ?? "0",
+          ["FinanceAmount"] = dataAgreementMarketing.FinanceAmount?.ToString("N2") ?? "0",
+          ["NetIntMarginRate"] = dataAgreementMarketing.InterestMargin?.ToString("N2") ?? "0",
+          ["NetIntMarginAmount"] = dataAgreementMarketing.NetInterestMarginAfterCost?.ToString("N2") ?? "0",
           
-
-          
-          // ["ListTunggakan"] = dataWLDelivery.ListTunggakan?.Select((x, i) => new ListTunggakan
-          // {
-          //   AgreementNo = x.AgreementNo,
-          //   DueDate = x.DueDate?.ToString("dd MMMM yyyy"),
-          //   OvdDays = x.OvdDays,
-          //   Pokok = x.PorsiPokok?.ToString("N2") ?? "0",          // String, bukan decimal.Parse
-          //   Bunga = x.Bunga?.ToString("N2") ?? "0",
-          //   InstallmentAmount = x.InstallmentAmount?.ToString("N2") ?? "0",
-          //   Denda = x.Denda?.ToString("N2") ?? "0",
-          //   BarangTunggakan = dataWLDelivery.Barang ?? "-",
-          // }).ToList(),
+          ["FeeList"] = agreementFeeList?.Select((x, i) => new AgreementFeeList
+          {
+            FeeNo = (i + 1),
+            FeeName = x.FeeName,
+            FeeAmount = x.FeeAmount,
+            FeeRate = x.FeeRate
+          }).ToList(),
         };
 
         // Panggil client
@@ -227,15 +250,36 @@ namespace Service
         };
     }
 
+    public async Task<FileDoc?> GetFile(string FileName)
+    {
+      using var connection = _repo.GetDbConnection();
+      using var transaction = connection.BeginTransaction();
+
+      try
+      {
+
+        if (FileName == null) throw new Exception("File doesn't exist");
+        var file = await SMBClient.DownloadFileAsync(FileName);
+
+        transaction.Commit();
+        return file;
+      }
+      catch (Exception ex)
+      {
+        transaction.Rollback();
+        throw new Exception($"Error downloading file '{FileName}': {ex.Message}", ex);
+      }
+    }
+
     #region GenerateDocumentAllTypeDoc
-    public async Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementMarketing dataAgreementMarketing)
+    public async Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
       try
       {
 
-        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction, mimeType, ID, dataAgreementMarketing);
+        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction, mimeType, ID, dataAgreementMarketing, agreementFeeList);
 
         
 

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Domain.Models
 {
-  public class IncentiveMarketing : BaseModel
+  public class IncentiveCollection : BaseModel
   {  
     public string? ClientID { get; set; }
     public string? ClientNo { get; set; }
@@ -13,11 +13,11 @@ namespace Domain.Models
     public string? PeriodeFrom { get; set; }
     public string? PeriodeTo { get; set; }
     //Print
-      public string? MimeType { get; set; }
-      public IFormFile? File { get; set; }
+    public string? MimeType { get; set; }
+    public IFormFile? File { get; set; }
 
     //Company Info
-      public string? CompanyName { get; set; }
-      public string? CompanyFileName { get; set; }
+    public string? CompanyName { get; set; }
+    public string? CompanyFileName { get; set; }
   }
 }

@@ -11,12 +11,12 @@ namespace API.Controllers
   [SetBaseModelProperties]
   [DecryptQueryString]
 	[DecryptRequestBody]
-  public class IncentiveMarketingController : BaseController
+  public class IncentiveCollectionController : BaseController
   {
-    private readonly IIncentiveMarketingService _service;
+    private readonly IIncentiveCollectionService _service;
     private readonly InternalAPIClient _internalAPIClient;
 
-    public IncentiveMarketingController(IIncentiveMarketingService service, IConfiguration configuration, InternalAPIClient internalAPIClient) : base(configuration)
+    public IncentiveCollectionController(IIncentiveCollectionService service, IConfiguration configuration, InternalAPIClient internalAPIClient) : base(configuration)
     {
       _service = service;
       _internalAPIClient = internalAPIClient;
@@ -51,7 +51,7 @@ namespace API.Controllers
     }
 
     [HttpPost("Insert")]
-    public async Task<ActionResult> Insert(IncentiveMarketing module)
+    public async Task<ActionResult> Insert(IncentiveCollection module)
     {
       try
       {
@@ -64,7 +64,7 @@ namespace API.Controllers
     }
 
     [HttpPut("UpdateByID")]
-    public async Task<ActionResult> UpdateByID(IncentiveMarketing module)
+    public async Task<ActionResult> UpdateByID(IncentiveCollection module)
     {
       try
       {
@@ -100,14 +100,14 @@ namespace API.Controllers
         var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
         var sysCompany = resSysCompany?.Data ?? [];
 
-        var incentiveMarketingData = await _service.GetRowByID(id);
+        var incentiveCollectionData = await _service.GetRowByID(id);
 
-        incentiveMarketingData.PeriodeFrom = PeriodeFrom;
-        incentiveMarketingData.PeriodeTo = PeriodeTo;
-        incentiveMarketingData.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
-        incentiveMarketingData.CompanyName = sysCompany?["Name"]?.GetValue<string>();
+        incentiveCollectionData.PeriodeFrom = PeriodeFrom;
+        incentiveCollectionData.PeriodeTo = PeriodeTo;
+        incentiveCollectionData.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+        incentiveCollectionData.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        var result = await _service.GetHTMLPreview(id, incentiveMarketingData);
+        var result = await _service.GetHTMLPreview(id, incentiveCollectionData);
         return ResponseSuccess(new { HTML = result });
 
       }
@@ -123,19 +123,19 @@ namespace API.Controllers
     {
       try
       {
-        var incentiveMarketingData = await _service.GetRowByID(id);
+        var incentiveCollectionData = await _service.GetRowByID(id);
 
         var headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
 
         var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
         var sysCompany = resSysCompany?.Data ?? [];
 
-        incentiveMarketingData.PeriodeFrom = PeriodeFrom;
-        incentiveMarketingData.PeriodeTo = PeriodeTo;
-        incentiveMarketingData.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
-        incentiveMarketingData.CompanyName = sysCompany?["Name"]?.GetValue<string>();
+        incentiveCollectionData.PeriodeFrom = PeriodeFrom;
+        incentiveCollectionData.PeriodeTo = PeriodeTo;
+        incentiveCollectionData.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+        incentiveCollectionData.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        var content = await _service.PrintDocument(mimeType, id, incentiveMarketingData);
+        var content = await _service.PrintDocument(mimeType, id, incentiveCollectionData);
         return ResponseSuccess(content);
 
       }

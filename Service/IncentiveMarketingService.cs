@@ -8,6 +8,7 @@ using iFinancing360.Helper;
 using System.Data;
 using System.Globalization;
 using iFinancing360.Service.Helper.Report;
+using iFinancing360.Service.Helper.SMBClient;
 
 namespace Service
 {
@@ -157,7 +158,7 @@ namespace Service
     }
 
     #region GetHTMLPreview
-    public async Task<string> GetHTMLPreview(string id, IncentiveMarketing dataAgreementMarketing)
+    public async Task<string> GetHTMLPreview(string id, IncentiveMarketing incentiveMarketingData)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -169,12 +170,22 @@ namespace Service
 
         DateTime systemDate = _globalConfig.SystemDateTime ?? DateTime.Now;
 
+        var file = await GetFile(incentiveMarketingData.CompanyFileName!);
+
+        // Convert file ke base64 untuk digunakan sebagai inline image
+        string base64Image = Convert.ToBase64String(file?.Content!);
+        string imageHtml = $"<img src=\"data:image/png;base64,{base64Image}\" alt=\"PT BOT FINANCE INDONESIA\" style=\"height: 50px;\" />";
+
         // Tambahan: Setup parameter untuk header
         var parameters = new Dictionary<string, string>
             {
-                { "report_title", "INQUIRY CLIENT AGREEMENT REPORT" },
-                { "print_date", systemDate.ToString("dddd, MMMM d yyyy", CultureInfo.InvariantCulture) },
-                { "print_time", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" }
+                { "ReportTitle", "Incentive Calculation Marketing" },
+                { "PrintDate", systemDate.ToString("dddd, MMMM d yyyy", CultureInfo.InvariantCulture) },
+                { "PrintTime", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" },
+                { "CompanyName", incentiveMarketingData.CompanyName ?? "-" },
+                { "ImageLogo", imageHtml },
+                { "PeriodeFrom", incentiveMarketingData.IncentivePeriode ?? "-" },
+                { "PeriodeTo", incentiveMarketingData.IncentivePeriode ?? "-" }
             };
 
         foreach (var parameter in parameters)
@@ -186,28 +197,36 @@ namespace Service
         var dataList = await _repoAgreementMarketing.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
 
         string tableRows = string.Empty;
-        foreach (var item in dataList)
+        if (dataList.Count == 0)
         {
-          tableRows += $@"<tr>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.AgreementNo ?? "-"} / {item.ClientName ?? "-"}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.ApprovedDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.DisbursementDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.IncentivePeriod.ToString() ?? "-"}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.PaymentMethod ?? "-"}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.CurrencyCode ?? "-"}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.NetFinance ?? 0}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.InterestRate ?? 0}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.CostRate ?? 0}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.InterestMargin ?? 0}</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{(item.BPERatio * 100)?.ToString("N2") ?? "0.00"}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{(item.InsurancePremiumUsageRatio * 100)?.ToString("N2") ?? "0.00"}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{(item.BPEEffect * 100)?.ToString("N2") ?? "0.00"}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.BPEIncomeIncentiveExpense ?? 0}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.NonInterestEffect ?? 0}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.InterestMarginProfitBeforeMarketingIncentive ?? 0}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioIncentiveAmount ?? 0}%</td>
-                        <td style=""padding: 8px; border: 1px solid #ccc; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioFinanceAmount ?? 0}%</td>
+          tableRows = @"<tr>
+                        <td colspan=""18"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: center;"">No data available for the selected period.</td>
                     </tr>";
+        } else
+        {
+          foreach (var item in dataList)
+          {
+            tableRows += $@"<tr>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.AgreementNo ?? "-"} / {item.ClientName ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.ApprovedDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.DisbursementDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentivePeriod.ToString() ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.PaymentMethod ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CurrencyCode ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NetFinance ?? 0}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestRate ?? 0}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CostRate ?? 0}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestMargin ?? 0}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPERatio * 100)?.ToString("N2") ?? "0.00"}%</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.InsurancePremiumUsageRatio * 100)?.ToString("N2") ?? "0.00"}%</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPEEffect * 100)?.ToString("N2") ?? "0.00"}%</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.BPEIncomeIncentiveExpense?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NonInterestEffect?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestMarginProfitBeforeMarketingIncentive?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioIncentiveAmount?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioFinanceAmount?.ToString("N2") ?? "0.00"}</td>
+                      </tr>";
+          }
         }
 
         htmlContent = htmlContent.Replace("{{table_rows}}", tableRows);
@@ -225,7 +244,7 @@ namespace Service
     #endregion
 
     #region PrintDocument
-    public async Task<FileDoc> PrintDocument(string mimeType, string id, IncentiveMarketing dataAgreementMarketing)
+    public async Task<FileDoc> PrintDocument(string mimeType, string id, IncentiveMarketing incentiveMarketingData)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -238,12 +257,15 @@ namespace Service
 
         DateTime systemDate = _globalConfig.SystemDateTime ?? DateTime.Now;
 
-        // Setup parameter untuk header
+        // Tambahan: Setup parameter untuk header
         var parameters = new Dictionary<string, string>
             {
-                { "report_title", "INQUIRY CLIENT AGREEMENT REPORT" },
-                { "print_date", systemDate.ToString("dddd, MMMM d yyyy", CultureInfo.InvariantCulture) },
-                { "print_time", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" }
+                { "ReportTitle", "Incentive Calculation Marketing" },
+                { "PrintDate", systemDate.ToString("dddd, MMMM d yyyy", CultureInfo.InvariantCulture) },
+                { "PrintTime", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" },
+                { "CompanyName", incentiveMarketingData.CompanyName ?? "-" },
+                { "PeriodeFrom", incentiveMarketingData.IncentivePeriode ?? "-" },
+                { "PeriodeTo", incentiveMarketingData.IncentivePeriode ?? "-" }
             };
 
         foreach (var parameter in parameters)
@@ -252,30 +274,34 @@ namespace Service
           htmlContent = htmlContent.Replace(placeholder, parameter.Value);
         }
 
-        // var dataList = await _repo.GetRowsForInquiryClientAgreement(transaction, "", 0, int.MaxValue, clientNo);
+        var dataList = await _repoAgreementMarketing.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
 
-        // string tableRows = string.Empty;
-        // foreach (var item in dataList)
-        // {
-        //   tableRows += $@"<tr>
-        //                 <td>{item.AgreementNo ?? "-"}</td>
-        //                 <td>{item.ClientName ?? "-"}</td>
-        //                 <td>{item.BranchName ?? "-"}</td>
-        //                 <td>{item.ProductName ?? "-"}</td>
-        //                 <td>{item.PurposeLoanDetailName ?? "-"}</td>
-        //                 <td>{item.AgreementDate?.ToString("dd/MM/yyyy") ?? "-"}</td>
-        //                 <td class='center'>{item.LastPaidPeriod ?? 0}</td>
-        //                 <td class='right'>{item.OsPrincipalAmount?.ToString("N2") ?? "0.00"}</td>
-        //                 <td class='right'>{item.OvdDays ?? 0}</td>
-        //                 <td class='right'>{item.OvdInstallmentAmount?.ToString("N2") ?? "0.00"}</td>
-        //                 <td class='right'>{item.OvdPenaltyAmount?.ToString("N2") ?? "0.00"}</td>
-        //                 <td class='right'>{item.FinanceAmount?.ToString("N2") ?? "0.00"}</td>
-        //                 <td class='center'>{item.AgreementStatus ?? "-"}</td>
-        //             </tr>";
-        // }
+        string tableRows = string.Empty;
+        foreach (var item in dataList)
+        {
+          tableRows += $@"<tr>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.AgreementNo ?? "-"} / {item.ClientName ?? "-"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.ApprovedDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.DisbursementDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentivePeriod.ToString() ?? "-"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.PaymentMethod ?? "-"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CurrencyCode ?? "-"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NetFinance ?? 0}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestRate ?? 0}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CostRate ?? 0}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestMargin ?? 0}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPERatio * 100)?.ToString("N2") ?? "0.00"}%</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.InsurancePremiumUsageRatio * 100)?.ToString("N2") ?? "0.00"}%</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPEEffect * 100)?.ToString("N2") ?? "0.00"}%</td>
+                       <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.BPEIncomeIncentiveExpense?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NonInterestEffect?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestMarginProfitBeforeMarketingIncentive?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioIncentiveAmount?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioFinanceAmount?.ToString("N2") ?? "0.00"}</td>
+                    </tr>";
+        }
 
-        // // Insert header info sebelum {{table_rows}}
-        // htmlContent = htmlContent.Replace("{{table_rows}}", tableRows);
+        htmlContent = htmlContent.Replace("{{table_rows}}", tableRows);
 
         MemoryStream memoryStream = new();
         string mimeTypetoReturn = string.Empty;
@@ -327,5 +353,26 @@ namespace Service
       }
     }
     #endregion
+
+    public async Task<FileDoc?> GetFile(string FileName)
+    {
+      using var connection = _repo.GetDbConnection();
+      using var transaction = connection.BeginTransaction();
+
+      try
+      {
+
+        if (FileName == null) throw new Exception("File doesn't exist");
+        var file = await SMBClient.DownloadFileAsync(FileName);
+
+        transaction.Commit();
+        return file;
+      }
+      catch (Exception ex)
+      {
+        transaction.Rollback();
+        throw new Exception($"Error downloading file '{FileName}': {ex.Message}", ex);
+      }
+    }
   }
 }

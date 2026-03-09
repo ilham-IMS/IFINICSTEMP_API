@@ -44,6 +44,22 @@ namespace DAL
                                 ,incentive_amount          AS IncentiveAmount
                                 ,marketing_incentive_ratio AS MarketingIncentiveRatio
                                 ,finance_amount            AS FinanceAmount
+                                ,insurance_rate             AS InsuranceRate
+                                ,interest_amount            AS InterestAmount
+                                ,cost_amount                AS CostAmount
+                                ,interest_margin_amount     AS InterestMarginAmount
+                                ,ccy_rate                   AS CCYRate
+                                ,bpe_total                  AS BPETotal
+                                ,bpe_total_amount           AS BPETotalAmount
+                                ,non_interest_name          AS NonInterestName
+                                ,non_interest_expense       AS NonInterestExpense
+                                ,non_interest_effect_amount AS NonInterestEffectAmount
+                                 -- Calculated Fields
+                                ,CASE WHEN profit_before_marketing_incentive <> 0 THEN interest_margin / profit_before_marketing_incentive ELSE 0 END AS InterestMarginProfitBeforeMarketingIncentive
+                                ,CASE WHEN incentive_amount <> 0 THEN marketing_incentive_ratio / incentive_amount ELSE 0 END AS MarketingIncentiveRatioIncentiveAmount
+                                ,CASE WHEN finance_amount <> 0 THEN marketing_incentive_ratio / finance_amount ELSE 0 END AS MarketingIncentiveRatioFinanceAmount
+                                ,CASE WHEN incentive_expense <> 0 THEN bpe_income / incentive_expense ELSE 0 END AS BPEIncomeIncentiveExpense
+                                ,(interest_margin - cost_rate)   AS NetInterestMarginAfterCost
                           from
                               {tableBase}
                           where
@@ -89,11 +105,22 @@ namespace DAL
                               ,incentive_amount          AS IncentiveAmount
                               ,marketing_incentive_ratio AS MarketingIncentiveRatio
                               ,finance_amount            AS FinanceAmount
+                              ,insurance_rate             AS InsuranceRate
+                              ,interest_amount            AS InterestAmount
+                              ,cost_amount                AS CostAmount
+                              ,interest_margin_amount     AS InterestMarginAmount
+                              ,ccy_rate                   AS CCYRate
+                              ,bpe_total                  AS BPETotal
+                              ,bpe_total_amount           AS BPETotalAmount
+                              ,non_interest_name          AS NonInterestName
+                              ,non_interest_expense       AS NonInterestExpense
+                              ,non_interest_effect_amount AS NonInterestEffectAmount
                               -- Calculated Fields
                               ,CASE WHEN profit_before_marketing_incentive <> 0 THEN interest_margin / profit_before_marketing_incentive ELSE 0 END AS InterestMarginProfitBeforeMarketingIncentive
                               ,CASE WHEN incentive_amount <> 0 THEN marketing_incentive_ratio / incentive_amount ELSE 0 END AS MarketingIncentiveRatioIncentiveAmount
                               ,CASE WHEN finance_amount <> 0 THEN marketing_incentive_ratio / finance_amount ELSE 0 END AS MarketingIncentiveRatioFinanceAmount
                               ,CASE WHEN incentive_expense <> 0 THEN bpe_income / incentive_expense ELSE 0 END AS BPEIncomeIncentiveExpense
+                              ,(interest_margin - cost_rate)   AS NetInterestMarginAfterCost
                         from 
                             {tableBase}
                         where 
@@ -170,11 +197,22 @@ namespace DAL
                               ,incentive_amount          AS IncentiveAmount
                               ,marketing_incentive_ratio AS MarketingIncentiveRatio
                               ,finance_amount            AS FinanceAmount
+                              ,insurance_rate             AS InsuranceRate
+                              ,interest_amount            AS InterestAmount
+                              ,cost_amount                AS CostAmount
+                              ,interest_margin_amount     AS InterestMarginAmount
+                              ,ccy_rate                   AS CCYRate
+                              ,bpe_total                  AS BPETotal
+                              ,bpe_total_amount           AS BPETotalAmount
+                              ,non_interest_name          AS NonInterestName
+                              ,non_interest_expense       AS NonInterestExpense
+                              ,non_interest_effect_amount AS NonInterestEffectAmount
                               -- Calculated Fields
                               ,CASE WHEN profit_before_marketing_incentive <> 0 THEN interest_margin / profit_before_marketing_incentive ELSE 0 END AS InterestMarginProfitBeforeMarketingIncentive
                               ,CASE WHEN incentive_amount <> 0 THEN marketing_incentive_ratio / incentive_amount ELSE 0 END AS MarketingIncentiveRatioIncentiveAmount
                               ,CASE WHEN finance_amount <> 0 THEN marketing_incentive_ratio / finance_amount ELSE 0 END AS MarketingIncentiveRatioFinanceAmount
                               ,CASE WHEN incentive_expense <> 0 THEN bpe_income / incentive_expense ELSE 0 END AS BPEIncomeIncentiveExpense
+                              ,(interest_margin - cost_rate)   AS NetInterestMarginAfterCost
                         from 
                             {tableBase}
                         where 
@@ -236,6 +274,16 @@ namespace DAL
                                 ,incentive_amount
                                 ,marketing_incentive_ratio
                                 ,finance_amount
+                                ,insurance_rate             
+                                ,interest_amount
+                                ,cost_amount            
+                                ,interest_margin_amount     
+                                ,ccy_rate                   
+                                ,bpe_total                  
+                                ,bpe_total_amount           
+                                ,non_interest_name          
+                                ,non_interest_expense       
+                                ,non_interest_effect_amount 
                             )
                             values
                             (
@@ -273,6 +321,16 @@ namespace DAL
                                 ,{p}IncentiveAmount
                                 ,{p}MarketingIncentiveRatio
                                 ,{p}FinanceAmount
+                                ,{p}InsuranceRate
+                                ,{p}InterestAmount
+                                ,{p}CostAmount
+                                ,{p}InterestMarginAmount
+                                ,{p}CCYRate
+                                ,{p}BPETotal
+                                ,{p}BPETotalAmount
+                                ,{p}NonInterestName
+                                ,{p}NonInterestExpense
+                                ,{p}NonInterestEffectAmount
                             )";
       return await _command.Insert(transaction, query, model);
     }
@@ -314,7 +372,16 @@ namespace DAL
                                 ,incentive_amount      = {p}IncentiveAmount
                                 ,marketing_incentive_ratio = {p}MarketingIncentiveRatio
                                 ,finance_amount        = {p}FinanceAmount
-                                
+                                ,insurance_rate             ={p}InsuranceRate
+                                ,cost_amount                ={p}CostAmount
+                                ,interest_amount            ={p}InterestAmount
+                                ,interest_margin_amount     ={p}InterestMarginAmount
+                                ,ccy_rate                   ={p}CCYRate
+                                ,bpe_total                  ={p}BPETotal
+                                ,bpe_total_amount           ={p}BPETotalAmount
+                                ,non_interest_name          ={p}NonInterestName
+                                ,non_interest_expense       ={p}NonInterestExpense
+                                ,non_interest_effect_amount ={p}NonInterestEffectAmount
                             where
                               id = {p}ID";
       return await _command.Update(transaction, query, model);

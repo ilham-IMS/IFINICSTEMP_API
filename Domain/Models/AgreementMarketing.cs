@@ -31,15 +31,28 @@ namespace Domain.Models
     public decimal? IncentiveAmount { get; set; }
     public decimal? MarketingIncentiveRatio { get; set; }
     public decimal? FinanceAmount { get; set; }
+    public decimal? InsuranceRate { get; set; }
+    public decimal? InterestAmount { get; set; }
+    public decimal? CostAmount { get; set; }
+    public decimal? InterestMarginAmount { get; set; }
+    public decimal? CCYRate { get; set; }
+    public decimal? BPETotal { get; set; }
+    public decimal? BPETotalAmount { get; set; }
+    public string? NonInterestName { get; set; }
+    public decimal? NonInterestExpense { get; set; }
+    public decimal? NonInterestEffectAmount { get; set; }
 
     // Calculated Fields
     public decimal? InterestMarginProfitBeforeMarketingIncentive { get; set; }
     public decimal? MarketingIncentiveRatioIncentiveAmount { get; set; }
     public decimal? MarketingIncentiveRatioFinanceAmount { get; set; }
     public decimal? BPEIncomeIncentiveExpense { get; set; }
+    public decimal? NetInterestMarginAfterCost { get; set; }
 
     //Print
       public string? MimeType { get; set; }
       public IFormFile? File { get; set; }
+      public string? CompanyFileName { get; set; }
+      public string? CompanyName { get; set; }
   }
 }

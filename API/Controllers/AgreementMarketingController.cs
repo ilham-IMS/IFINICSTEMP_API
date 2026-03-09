@@ -2,6 +2,7 @@ using iFinancing360.API.Helper;
 using Domain.Abstract.Service;
 using Domain.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Nodes;
 
 namespace API.Controllers
 {
@@ -14,10 +15,12 @@ namespace API.Controllers
   public class AgreementMarketingController : BaseController
   {
     private readonly IAgreementMarketingService _service;
+    private readonly InternalAPIClient _internalAPIClient;
 
-    public AgreementMarketingController(IAgreementMarketingService service, IConfiguration configuration) : base(configuration)
+    public AgreementMarketingController(IAgreementMarketingService service, IConfiguration configuration, InternalAPIClient internalAPIClient) : base(configuration)
     {
       _service = service;
+      _internalAPIClient = internalAPIClient;
     }
 
     [HttpGet("GetRows")]
@@ -103,10 +106,36 @@ namespace API.Controllers
         if (dataAgreementMarketing == null)
           return NotFound("Data agreement marketing not found");
 
-        
+        var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
+        var sysCompany = resSysCompany?.Data ?? [];
+
+        var resAgreementFee = await _internalAPIClient.GetRows("IFINCORE", "AgreementFee", "GetRows", parameters: new { Keyword = "", Offset=0, Limit = int.MaxValue, AgreementID = dataAgreementMarketing.AgreementID }, headers: headers);
+        var AgreementFee = resAgreementFee?.Data ?? [];
+
+        dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+        dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
+
+        var agreementFeelist = new List<AgreementFeeList>();
+        var dataArr = AgreementFee as List<JsonObject>;
+        if (dataArr != null)
+        {
+          foreach (var obj in dataArr)
+          {
+            if (obj != null)
+            {
+              var tunggakan = new AgreementFeeList
+              {
+                FeeName = obj["FeeName"]?.GetValue<string>(),
+                FeeAmount = (obj["FeeAmount"]?.GetValue<decimal>() * 100)?.ToString("N0"),
+                FeeRate = (obj["FeeRate"]?.GetValue<decimal>() * 100)?.ToString("N0")
+              };
+              agreementFeelist.Add(tunggakan);
+            }
+          }
+        }
 
         // --- Generate HTML ---
-        var html = await _service.GetPreview(dataAgreementMarketing, ID);
+        var html = await _service.GetPreview(dataAgreementMarketing, ID, agreementFeelist);
 
         return File(html.Content, html.MimeType, html.Name);
         // return ResponseSuccess(new { HTML = html });
@@ -136,53 +165,36 @@ namespace API.Controllers
         if (dataAgreementMarketing == null)
           return NotFound("Data agreement marketing not found");
 
-        // --- Transfer properties penting dari model input ---
-        dataAgreementMarketing.MimeType = model.MimeType;
-        dataAgreementMarketing.ModBy = model.ModBy;
-        dataAgreementMarketing.ModDate = model.ModDate;
-        dataAgreementMarketing.ModIPAddress = model.ModIPAddress;
+        var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
+        var sysCompany = resSysCompany?.Data ?? [];
 
-        // // --- Call ke CORE untuk melengkapi data ---
-        // var resp = await _internalAPIClient.GetRow(
-        //     "IFINCORE",
-        //     "AgreementMain",
-        //     "GetAgreementNoForReportWLDelivery",
-        //     new { AgreementNo = dataWarningLetter.AgreementNo },
-        //     headers
-        // );
+        var resAgreementFee = await _internalAPIClient.GetRows("IFINCORE", "AgreementFee", "GetRows", parameters: new { Keyword = "", Offset=0, Limit = int.MaxValue, AgreementID = dataAgreementMarketing.AgreementID }, headers: headers);
+        var AgreementFee = resAgreementFee?.Data ?? [];
 
-        // var listTunggakan = new List<WarningLetterDeliveryDetail>();
-        // var dataArr = respTunggakan?.Data as List<JsonObject>;
-        // if (dataArr != null)
-        // {
-        //   foreach (var obj in dataArr)
-        //   {
-        //     if (obj != null)
-        //     {
-        //       var tunggakan = new WarningLetterDeliveryDetail
-        //       {
-        //         AgreementNo = obj["AgreementNo"]?.ToString(),
-        //         DueDate = obj["DueDate"]?.GetValue<DateTime>(),
-        //         OvdDays = obj["OvdDays"]?.GetValue<int>(),
-        //         InstallmentAmount = obj["InstallmentAmount"]?.GetValue<decimal>(),
-        //         PorsiPokok = obj["PorsiPokok"]?.GetValue<decimal>(),
-        //         Bunga = obj["Bunga"]?.GetValue<decimal>(),
-        //         Denda = obj["Denda"]?.GetValue<decimal>(),
-        //         TotalTunggakan = obj["TotalTunggakan"]?.GetValue<decimal>()
-        //       };
-        //       listTunggakan.Add(tunggakan);
-        //     }
-        //   }
-        // }
+        dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+        dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        // // --- Assign data tunggakan dari CORE (prioritas utama) ---
-        // if (listTunggakan.Count > 0)
-        // {
-        //   dataWarningLetter.ListTunggakan = listTunggakan;
-        // }
+        var agreementFeelist = new List<AgreementFeeList>();
+        var dataArr = AgreementFee as List<JsonObject>;
+        if (dataArr != null)
+        {
+          foreach (var obj in dataArr)
+          {
+            if (obj != null)
+            {
+              var tunggakan = new AgreementFeeList
+              {
+                FeeName = obj["FeeName"]?.GetValue<string>(),
+                FeeAmount = (obj["FeeAmount"]?.GetValue<decimal>() * 100)?.ToString("N0"),
+                FeeRate = (obj["FeeRate"]?.GetValue<decimal>() * 100)?.ToString("N0")
+              };
+              agreementFeelist.Add(tunggakan);
+            }
+          }
+        }
 
         
-        var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!,model.ID!, dataAgreementMarketing);
+        var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!,model.ID!, dataAgreementMarketing, agreementFeelist);
         return ResponseSuccess(content);
         // var result = await _service.PrintDocument(dataWarningLetter);
 
