@@ -145,5 +145,31 @@ namespace DAL
 														id = {p}ID";
       return await _command.Update(transaction, query, model);
     }
+
+    public async Task<int> CountExistingGroup(IDbTransaction transaction, string incentiveType, string groupDescription)
+    {
+      var p = db.Symbol();
+      string query =
+                  $@"
+                        select 
+                              count(id)
+                              
+                        from 
+                            {tableBase}
+                        where 
+                            lower(incentive_type) = lower({p}IncentiveType)
+                            and lower(group_description) = lower({p}GroupDescription)
+                        ";
+
+      var parameters = new
+      {
+        IncentiveType = incentiveType,
+        GroupDescription = groupDescription
+      };
+
+      var result = await _command.GetRow<int>
+      (transaction, query, parameters);
+      return result;
+    }
   }
 }

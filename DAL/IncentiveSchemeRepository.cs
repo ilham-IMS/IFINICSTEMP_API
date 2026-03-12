@@ -176,5 +176,57 @@ namespace DAL
 														id = {p}ID";
       return await _command.Update(transaction, query, model);
     }
+
+    public async Task<int> CountExistingScheme(IDbTransaction transaction, string incentiveType, DateTime? effDate, string? excludeID = null)
+    {
+      var p = db.Symbol();
+
+      string query =
+                    $@"  select
+                                count(id)
+                          from
+                              {tableBase}
+                          where
+                              lower(incentive_type) = lower({p}IncentiveType)
+                              and eff_date = {p}EffDate
+                  ";
+                  if (!string.IsNullOrEmpty(excludeID))
+                  {
+                    query += $" and id != {p}ExcludeID";
+                  }
+      var parameters = new { IncentiveType = incentiveType, EffDate = effDate, ExcludeID = excludeID };
+
+      var result = await _command.GetRow<int>(transaction, query, parameters);
+      return result;
+    }
+
+    public async Task<DateTime> GetExistingSchemeEffDate(IDbTransaction transaction, string incentiveType, string? excludeID = null)
+    {
+      var p = db.Symbol();
+
+      string query =
+                  $@"  select
+                              isnull(max(eff_date), cast('1900-01-01' as datetime)) AS EffDate
+                        from
+                            {tableBase}
+                        where
+                            lower(incentive_type) = lower({p}IncentiveType)
+                ";
+      
+      dynamic parameters;
+      
+      if (!string.IsNullOrEmpty(excludeID))
+      {
+        query += $" and id != {p}ExcludeID";
+        parameters = new { IncentiveType = incentiveType, ExcludeID = excludeID };
+      }
+      else
+      {
+        parameters = new { IncentiveType = incentiveType };
+      }
+
+      var result = await _command.GetRow<DateTime>(transaction, query, parameters);
+      return result;
+    }
   }
 }

@@ -131,14 +131,14 @@ namespace Service
       }
     }
 
-    public async Task<FileDoc> GetPreview(AgreementMarketing dataAgreementMarketing, string ID, List<AgreementFeeList> agreementFeeList)
+    public async Task<FileDoc> GetPreview(AgreementMarketing dataAgreementMarketing, string ID, List<AgreementFeeList> agreementFeeList, List<AgreementCommissionList> agreementCommList, List<AgreementReferralList> agreementReferrallist)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
 
       try
       {
-        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction,"docx", ID, dataAgreementMarketing, agreementFeeList);
+        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction,"docx", ID, dataAgreementMarketing, agreementFeeList, agreementCommList, agreementReferrallist);
 
         transaction.Commit();
         return fileDoc;
@@ -151,7 +151,7 @@ namespace Service
       }
     }
 
-    private async Task<FileDoc> GenerateDocumentFromTemplate(IDbTransaction transaction, string outputFormat, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList)
+    private async Task<FileDoc> GenerateDocumentFromTemplate(IDbTransaction transaction, string outputFormat, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList, List<AgreementCommissionList> agreementCommList, List<AgreementReferralList> agreementReferrallist)
     {
 
         
@@ -212,7 +212,6 @@ namespace Service
           ["ProfBeforeMarketingIncentive"] = dataAgreementMarketing.ProfitBeforeMarketingIncentive?.ToString("N2") ?? "0",
           ["MarIncRatio"] = dataAgreementMarketing.MarketingIncentiveRatio?.ToString("N2") ?? "0",
           ["IncAmount"] = dataAgreementMarketing.IncentiveAmount?.ToString("N2") ?? "0",
-          ["FinanceAmount"] = dataAgreementMarketing.FinanceAmount?.ToString("N2") ?? "0",
           ["NetIntMarginRate"] = dataAgreementMarketing.InterestMargin?.ToString("N2") ?? "0",
           ["NetIntMarginAmount"] = dataAgreementMarketing.NetInterestMarginAfterCost?.ToString("N2") ?? "0",
           
@@ -222,6 +221,22 @@ namespace Service
             FeeName = x.FeeName,
             FeeAmount = x.FeeAmount,
             FeeRate = x.FeeRate
+          }).ToList(),
+
+          ["CommList"] = agreementCommList?.Select((x, i) => new AgreementCommissionList
+          {
+            CommNo = (i + 1),
+            CommName = x.CommName,
+            CommAmount = x.CommAmount,
+            CommRate = x.CommRate
+          }).ToList(),
+
+          ["ReffList"] = agreementReferrallist?.Select((x, i) => new AgreementReferralList
+          {
+            ReferralNo = (i + 1),
+            ReferralName = x.ReferralName,
+            ReferralAmount = x.ReferralAmount,
+            ReferralRate = x.ReferralRate
           }).ToList(),
         };
 
@@ -272,14 +287,14 @@ namespace Service
     }
 
     #region GenerateDocumentAllTypeDoc
-    public async Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList)
+    public async Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList, List<AgreementCommissionList> agreementCommList, List<AgreementReferralList> agreementReferrallist)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
       try
       {
 
-        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction, mimeType, ID, dataAgreementMarketing, agreementFeeList);
+        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction, mimeType, ID, dataAgreementMarketing, agreementFeeList, agreementCommList, agreementReferrallist);
 
         
 

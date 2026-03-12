@@ -5,7 +5,7 @@ namespace Domain.Abstract.Service
 {
   public interface IAgreementMarketingService : IBaseService<AgreementMarketing>
   {
-    Task<FileDoc> GetPreview(AgreementMarketing dataAgreementMarketing, string ID, List<AgreementFeeList> agreementFeeList);
-    Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList);
+    Task<FileDoc> GetPreview(AgreementMarketing dataAgreementMarketing, string ID, List<AgreementFeeList> agreementFeeList, List<AgreementCommissionList> agreementCommList, List<AgreementReferralList> agreementReferrallist);
+    Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementMarketing dataAgreementMarketing, List<AgreementFeeList> agreementFeeList, List<AgreementCommissionList> agreementCommList, List<AgreementReferralList> agreementReferrallist);
   }
 }

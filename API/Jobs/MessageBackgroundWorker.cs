@@ -56,23 +56,26 @@ public class MessageBackgroundWorker : IHostedService
 
 
     private readonly SemaphoreSlim _interfaceMasterApprovalSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _interfaceAgreementIncentiveMarketingSemaphore = new(1, 1);
 
     #region Service
-    private readonly InterfaceMasterApprovalJobIn _interfaceMasterApprovalJobIn;
-    
+    private readonly InterfaceAgreementIncentiveMarketingJobIn _interfaceAgreementIncentiveMarketingJobIn;
     #endregion
 
     public MessageBackgroundWorker(ILogger<MessageBackgroundWorker> logger, IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
         using var scope = serviceScopeFactory.CreateScope();
-        _interfaceMasterApprovalJobIn = scope.ServiceProvider.GetRequiredService<InterfaceMasterApprovalJobIn>();
+       
+        _interfaceAgreementIncentiveMarketingJobIn = scope.ServiceProvider.GetRequiredService<InterfaceAgreementIncentiveMarketingJobIn>();
     }
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Timed Hosted Service running every {interval} seconds.", 5);
 
-        _timerList.Add(AddBackgroundTask(async state => await SafeConsume(_interfaceMasterApprovalSemaphore, _interfaceMasterApprovalJobIn.StartAsync), 5));
+        _timerList.Add(AddBackgroundTask(
+            async state => await SafeConsume(_interfaceAgreementIncentiveMarketingSemaphore, _interfaceAgreementIncentiveMarketingJobIn.StartAsync), 
+            5));
 
         return Task.CompletedTask;
     }

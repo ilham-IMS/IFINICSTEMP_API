@@ -9,17 +9,17 @@ using System.Data;
 
 namespace Service
 {
-  public class IncentiveGroupPositionService : BaseService, IIncentiveGroupPositionService
+  public class AgreementFeeService : BaseService, IAgreementFeeService
   {
 
-    private readonly IIncentiveGroupPositionRepository _repo;
-    public IncentiveGroupPositionService(IIncentiveGroupPositionRepository repo)
+    private readonly IAgreementFeeRepository _repo;
+    public AgreementFeeService(IAgreementFeeRepository repo)
     {
       _repo = repo;
     }
 
 
-    public async Task<IncentiveGroupPosition> GetRowByID(string id)
+    public async Task<AgreementFee> GetRowByID(string id)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -40,7 +40,7 @@ namespace Service
       }
     }
 
-    public async Task<List<IncentiveGroupPosition>> GetRows(string? keyword, int offset, int limit)
+    public async Task<List<AgreementFee>> GetRows(string? keyword, int offset, int limit)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -60,14 +60,14 @@ namespace Service
       }
     }
 
-    public async Task<List<IncentiveGroupPosition>> GetRowsByGroupID(string? keyword, int offset, int limit, string groupID)
+    public async Task<List<AgreementFee>> GetRowsByAgreementID(string? keyword, int offset, int limit, string agreementID, int isInternalIncome)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
       {
         try
         {
-          var result = await _repo.GetRowsByGroupID(transaction, keyword, offset, limit, groupID);
+          var result = await _repo.GetRowsByAgreementID(transaction, keyword, offset, limit, agreementID, isInternalIncome);
           transaction.Commit();
           return result;
         }
@@ -80,7 +80,7 @@ namespace Service
       }
     }
 
-    public async Task<int> Insert(IncentiveGroupPosition model)
+    public async Task<int> Insert(AgreementFee model)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -101,13 +101,14 @@ namespace Service
       }
     }
 
-    public async Task<int> UpdateByID(IncentiveGroupPosition model)
+    public async Task<int> UpdateByID(AgreementFee model)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
       {
           try
           {
+            
           int result = await _repo.UpdateByID(transaction, model);
           transaction.Commit();
           return result;
@@ -118,47 +119,6 @@ namespace Service
           throw;
         }
 
-      }
-    }
-
-    public async Task<int> UpdateByID(List<IncentiveGroupPosition> modelList)
-    {
-      using var connection = _repo.GetDbConnection();
-      using var transaction = connection.BeginTransaction();
-      {
-          try
-          {
-              int result = 0;
-              foreach (var model in modelList)
-              {
-                  // Cek duplikasi hanya jika PositionID berubah
-                  var existingRecord = await _repo.GetRowByID(transaction, model.ID);
-                  
-                  if (existingRecord.PositionID != model.PositionID)
-                  {
-                      var countPosition = await _repo.CheckDuplicatePosition(
-                          transaction, 
-                          model.IncentiveGroupID, 
-                          model.PositionID, 
-                          model.ID);
-
-                      if (countPosition > 0) 
-                          throw new Exception($"Position {model.PositionDescription} already exists in this group.");
-                  }
-
-                  if (model.PositionRatio.HasValue && model.PositionRatio.Value < 0)
-                      throw new Exception($"Position Ratio for {model.PositionDescription} cannot be negative.");
-                  
-                  result += await _repo.UpdateByID(transaction, model);
-              }
-              transaction.Commit();
-              return result;
-          }
-          catch (Exception)
-          {
-              transaction.Rollback();
-              throw;
-          }
       }
     }
     

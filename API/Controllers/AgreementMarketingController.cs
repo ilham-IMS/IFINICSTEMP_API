@@ -112,6 +112,9 @@ namespace API.Controllers
         var resAgreementFee = await _internalAPIClient.GetRows("IFINCORE", "AgreementFee", "GetRows", parameters: new { Keyword = "", Offset=0, Limit = int.MaxValue, AgreementID = dataAgreementMarketing.AgreementID }, headers: headers);
         var AgreementFee = resAgreementFee?.Data ?? [];
 
+        var resAgreementReff = await _internalAPIClient.GetRows("IFINCORE", "AgreementRefund", "GetRows", parameters: new { Keyword = "", Offset=0, Limit = int.MaxValue, AgreementID = dataAgreementMarketing.AgreementID }, headers: headers);
+        var AgreementRefund = resAgreementReff?.Data ?? [];
+
         dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
         dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
@@ -123,19 +126,57 @@ namespace API.Controllers
           {
             if (obj != null)
             {
-              var tunggakan = new AgreementFeeList
+              var fees = new AgreementFeeList
               {
                 FeeName = obj["FeeName"]?.GetValue<string>(),
                 FeeAmount = (obj["FeeAmount"]?.GetValue<decimal>() * 100)?.ToString("N0"),
                 FeeRate = (obj["FeeRate"]?.GetValue<decimal>() * 100)?.ToString("N0")
               };
-              agreementFeelist.Add(tunggakan);
+              agreementFeelist.Add(fees);
+            }
+          }
+        }
+
+        var agreementCommlist = new List<AgreementCommissionList>();
+        var dataComm = AgreementRefund as List<JsonObject>;
+        if (dataComm != null)
+        {
+          foreach (var obj in dataComm)
+          {
+            if (obj != null)
+            {
+              var Comms = new AgreementCommissionList
+              {
+                CommName = obj["RefundDesc"]?.GetValue<string>(),
+                CommAmount = (obj["RefundAmount"]?.GetValue<decimal>())?.ToString("N0"),
+                CommRate = (obj["RefundRate"]?.GetValue<decimal>())?.ToString("N0")
+              };
+              agreementCommlist.Add(Comms);
+            }
+          }
+        }
+
+        var agreementReferrallist = new List<AgreementReferralList>();
+        var dataReferral = AgreementFee as List<JsonObject>;
+        if (dataReferral != null)
+        {
+          foreach (var obj in dataReferral)
+          {
+            if (obj != null)
+            {
+              var Refs = new AgreementReferralList
+              {
+                ReferralName = obj["FeeName"]?.GetValue<string>(),
+                ReferralAmount = (obj["FeeAmount"]?.GetValue<decimal>() * 100)?.ToString("N0"),
+                ReferralRate = (obj["FeeRate"]?.GetValue<decimal>() * 100)?.ToString("N0")
+              };
+              agreementReferrallist.Add(Refs);
             }
           }
         }
 
         // --- Generate HTML ---
-        var html = await _service.GetPreview(dataAgreementMarketing, ID, agreementFeelist);
+        var html = await _service.GetPreview(dataAgreementMarketing, ID, agreementFeelist, agreementCommlist, agreementReferrallist);
 
         return File(html.Content, html.MimeType, html.Name);
         // return ResponseSuccess(new { HTML = html });
@@ -171,6 +212,9 @@ namespace API.Controllers
         var resAgreementFee = await _internalAPIClient.GetRows("IFINCORE", "AgreementFee", "GetRows", parameters: new { Keyword = "", Offset=0, Limit = int.MaxValue, AgreementID = dataAgreementMarketing.AgreementID }, headers: headers);
         var AgreementFee = resAgreementFee?.Data ?? [];
 
+         var resAgreementReff = await _internalAPIClient.GetRows("IFINCORE", "AgreementRefund", "GetRows", parameters: new { Keyword = "", Offset=0, Limit = int.MaxValue, AgreementID = dataAgreementMarketing.AgreementID }, headers: headers);
+        var AgreementRefund = resAgreementReff?.Data ?? [];
+
         dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
         dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
@@ -193,8 +237,45 @@ namespace API.Controllers
           }
         }
 
-        
-        var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!,model.ID!, dataAgreementMarketing, agreementFeelist);
+        var agreementCommlist = new List<AgreementCommissionList>();
+        var dataComm = AgreementRefund as List<JsonObject>;
+        if (dataComm != null)
+        {
+          foreach (var obj in dataComm)
+          {
+            if (obj != null)
+            {
+              var tunggakan = new AgreementCommissionList
+              {
+                CommName = obj["RefundDesc"]?.GetValue<string>(),
+                CommAmount = (obj["RefundAmount"]?.GetValue<decimal>())?.ToString("N0"),
+                CommRate = (obj["RefundRate"]?.GetValue<decimal>())?.ToString("N0")
+              };
+              agreementCommlist.Add(tunggakan);
+            }
+          }
+        }
+
+        var agreementReferrallist = new List<AgreementReferralList>();
+        var dataReferral = AgreementFee as List<JsonObject>;
+        if (dataReferral != null)
+        {
+          foreach (var obj in dataReferral)
+          {
+            if (obj != null)
+            {
+              var Refs = new AgreementReferralList
+              {
+                ReferralName = obj["FeeName"]?.GetValue<string>(),
+                ReferralAmount = (obj["FeeAmount"]?.GetValue<decimal>() * 100)?.ToString("N0"),
+                ReferralRate = (obj["FeeRate"]?.GetValue<decimal>() * 100)?.ToString("N0")
+              };
+              agreementReferrallist.Add(Refs);
+            }
+          }
+        }
+
+        var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!,model.ID!, dataAgreementMarketing, agreementFeelist, agreementCommlist, agreementReferrallist);
         return ResponseSuccess(content);
         // var result = await _service.PrintDocument(dataWarningLetter);
 

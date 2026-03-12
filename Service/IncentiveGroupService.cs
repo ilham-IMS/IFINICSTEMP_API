@@ -69,7 +69,11 @@ namespace Service
       {
         try
         {
-          
+          var existingGroups = await _repo.CountExistingGroup(transaction, model.IncentiveType!, model.GroupDescription!);
+          if (existingGroups > 0)
+          {
+            throw new Exception("Group with the same Type and Description already exists.");
+          }
           int result = await _repo.Insert(transaction, model);
           var tempProperties = model.Properties;
 

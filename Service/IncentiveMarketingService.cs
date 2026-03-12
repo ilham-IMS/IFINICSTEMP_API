@@ -158,7 +158,7 @@ namespace Service
     }
 
     #region GetHTMLPreview
-    public async Task<string> GetHTMLPreview(string id, IncentiveMarketing incentiveMarketingData)
+    public async Task<string> GetHTMLPreview(string id, IncentiveMarketing incentiveMarketingData, List<AgreementIncentiveMarketing> dataAgreement)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -194,17 +194,15 @@ namespace Service
           htmlContent = htmlContent.Replace(placeholder, parameter.Value);
         }
 
-        var dataList = await _repoAgreementMarketing.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
-
         string tableRows = string.Empty;
-        if (dataList.Count == 0)
+        if (dataAgreement.Count == 0)
         {
           tableRows = @"<tr>
                         <td colspan=""18"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: center;"">No data available for the selected period.</td>
                     </tr>";
         } else
         {
-          foreach (var item in dataList)
+          foreach (var item in dataAgreement)
           {
             tableRows += $@"<tr>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.AgreementNo ?? "-"} / {item.ClientName ?? "-"}</td>
@@ -220,11 +218,11 @@ namespace Service
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPERatio * 100)?.ToString("N2") ?? "0.00"}%</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.InsurancePremiumUsageRatio * 100)?.ToString("N2") ?? "0.00"}%</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPEEffect * 100)?.ToString("N2") ?? "0.00"}%</td>
-                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.BPEIncomeIncentiveExpense?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.BPEIncomeIncentiveExpense?.ToString("N2") ?? "0.00"}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NonInterestEffect?.ToString("N2") ?? "0.00"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestMarginProfitBeforeMarketingIncentive?.ToString("N2") ?? "0.00"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioIncentiveAmount?.ToString("N2") ?? "0.00"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioFinanceAmount?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.ProfitBeforeMarketingIncentive?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatio?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NetInterestMarginAfterCost?.ToString("N2") ?? "0.00"}</td>
                       </tr>";
           }
         }
@@ -244,7 +242,7 @@ namespace Service
     #endregion
 
     #region PrintDocument
-    public async Task<FileDoc> PrintDocument(string mimeType, string id, IncentiveMarketing incentiveMarketingData)
+    public async Task<FileDoc> PrintDocument(string mimeType, string id, IncentiveMarketing incentiveMarketingData, List<AgreementIncentiveMarketing> dataAgreement)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -274,10 +272,8 @@ namespace Service
           htmlContent = htmlContent.Replace(placeholder, parameter.Value);
         }
 
-        var dataList = await _repoAgreementMarketing.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
-
         string tableRows = string.Empty;
-        foreach (var item in dataList)
+        foreach (var item in dataAgreement)
         {
           tableRows += $@"<tr>
                         <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.AgreementNo ?? "-"} / {item.ClientName ?? "-"}</td>
@@ -295,9 +291,9 @@ namespace Service
                         <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{(item.BPEEffect * 100)?.ToString("N2") ?? "0.00"}%</td>
                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.BPEIncomeIncentiveExpense?.ToString("N2") ?? "0.00"}</td>
                         <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NonInterestEffect?.ToString("N2") ?? "0.00"}</td>
-                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.InterestMarginProfitBeforeMarketingIncentive?.ToString("N2") ?? "0.00"}</td>
-                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioIncentiveAmount?.ToString("N2") ?? "0.00"}</td>
-                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatioFinanceAmount?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.ProfitBeforeMarketingIncentive?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingIncentiveRatio?.ToString("N2") ?? "0.00"}</td>
+                        <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.NetInterestMarginAfterCost?.ToString("N2") ?? "0.00"}</td>
                     </tr>";
         }
 

@@ -73,12 +73,21 @@ namespace Service
 
           if (model.EffDate < DateTime.Now) ErrorList.Add("Effective Date cannot be less than current date");
 
+          var countExistingScheme = await _repo.CountExistingScheme(transaction, model.IncentiveType!, model.EffDate);
+          if (countExistingScheme > 0) ErrorList.Add("Scheme with the same Type and Effective Date already exists");
+
+          var existingSchemeEffDate = await _repo.GetExistingSchemeEffDate(transaction, model.IncentiveType!);
+
+          if (model.EffDate < existingSchemeEffDate) ErrorList.Add($"Effective date must be greater than the latest scheme. Latest scheme effective date: {existingSchemeEffDate.ToString("dd-MMM-yyyy")}");
+
           if (model.IncentiveType == "COLLECTION")
           {
             if (model.OverdueDaysFrom < 0) ErrorList.Add("Overdue Days From cannot be less than 0");
             if (model.OverdueDaysTo < 0) ErrorList.Add("Overdue Days To cannot be less than 0");
             if (model.MinimumAmount < 0) ErrorList.Add("Minimum Amount cannot be less than 0");
             if (model.MaximumAmount < 0) ErrorList.Add("Maximum Amount cannot be less than 0");
+            if (model.OverdueDaysFrom > model.OverdueDaysTo) ErrorList.Add("Overdue Days From cannot be greater than Overdue Days To");
+            if (model.MinimumAmount > model.MaximumAmount) ErrorList.Add("Minimum Amount cannot be greater than Maximum Amount");
           }
           else
           {
@@ -117,6 +126,13 @@ namespace Service
 
             if (model.EffDate < DateTime.Now) ErrorList.Add("Effective Date cannot be less than current date");
 
+            var countExistingScheme = await _repo.CountExistingScheme(transaction, model.IncentiveType!, model.EffDate, model.ID);
+            if (countExistingScheme > 0) ErrorList.Add("Scheme with the same Type and Effective Date already exists");
+
+            var existingSchemeEffDate = await _repo.GetExistingSchemeEffDate(transaction, model.IncentiveType!, model.ID);
+
+            if (model.EffDate < existingSchemeEffDate) ErrorList.Add($"Effective date must be greater than the latest scheme. Latest scheme effective date: {existingSchemeEffDate.ToString("dd-MMM-yyyy")}");
+
             if (model.IncentiveType == "MARKETING")
             {
               model.OverdueDaysFrom = null;
@@ -136,6 +152,8 @@ namespace Service
               if (model.OverdueDaysTo < 0) ErrorList.Add("Overdue Days To cannot be less than 0");
               if (model.MinimumAmount < 0) ErrorList.Add("Minimum Amount cannot be less than 0");
               if (model.MaximumAmount < 0) ErrorList.Add("Maximum Amount cannot be less than 0");
+              if (model.OverdueDaysFrom > model.OverdueDaysTo) ErrorList.Add("Overdue Days From cannot be greater than Overdue Days To");
+              if (model.MinimumAmount > model.MaximumAmount) ErrorList.Add("Minimum Amount cannot be greater than Maximum Amount");
             }
           if (ErrorList.Count > 0) throw new Exception(string.Join(";\n ", ErrorList));
 

@@ -12,13 +12,13 @@ namespace API.ServiceRegister
     public static void AddService(this IServiceCollection services)
     {
       services.AddHostedService<MessageBackgroundWorker>();
-      services.AddScoped<InterfaceMasterApprovalJobIn>();
       services.AddScoped<NanoDocClient>();
       // services.AddScoped<IMasterBookRepository, MasterBookRepository>();
       // services.AddScoped<IMasterBookService, MasterBookService>();
       services.AddSingleton<AesEncryptionService>();
       services.AddScoped<DecryptRequestBodyAttribute>();
       services.AddScoped<DecryptQueryStringAttribute>();
+      services.AddScoped<InterfaceAgreementIncentiveMarketingJobIn>();
       services.AddHttpContextAccessor();
       // services.AddTransient<AppraisalRequestConsumerMessage>();
       List<Type> allRepositories = Assembly.Load("DAL")
