@@ -195,6 +195,60 @@ namespace Service
         // string base64Image = Convert.ToBase64String(file?.Content!);
         // string imageHtml = $"<img src=\"data:image/png;base64,{base64Image}\" alt=\"PT BOT FINANCE INDONESIA\" style=\"height: 50px;\" />";
 
+        var agreementCommlist = new List<AgreementCommissionList>();
+        var comm = new AgreementCommissionList
+        {
+          CommName = "Insurance",
+          CommRate = dataAgreementMarketing.CommissionRate?.ToString("N2") + "%" ?? "0",
+          CommAmount = (dataAgreementMarketing.CommissionRate * dataAgreementMarketing.TotalInsurancePremiAmount)?.ToString("N2") ?? "0"
+        };
+        agreementCommlist.Add(comm);
+        var comm2 = new AgreementCommissionList
+        {
+          CommName = "Provision",
+          CommRate = "",
+          CommAmount = dataAgreementMarketing.ProvisionFeeAmount?.ToString("N2") ?? "0"
+        };
+        agreementCommlist.Add(comm2);
+
+        var agreementReferrallist = await _agreementRefundRepo.GetRowsByAgreementID(transaction, null, 0, int.MaxValue, ID);
+
+        int maxCount = Math.Max(agreementCommlist?.Count ?? 0, agreementReferrallist?.Count ?? 0);
+
+        var combinedList = Enumerable.Range(0, maxCount)
+        .Select(i => new 
+        {
+          CommNo = i < agreementCommlist?.Count ? (i + 1) : (int?)null,
+          CommName = i < agreementCommlist?.Count ? agreementCommlist[i].CommName : null,
+          CommAmount = i < agreementCommlist?.Count ? agreementCommlist[i].CommAmount : null,
+          CommRate = i < agreementCommlist?.Count ? agreementCommlist[i].CommRate : null,
+          ReffNo = i < agreementReferrallist?.Count ? (i + 1) : (int?)null,
+          ReffName = i < agreementReferrallist?.Count ? agreementReferrallist[i].RefundDesc : null,
+          ReffAmount = i < agreementReferrallist?.Count ? agreementReferrallist[i].RefundAmount?.ToString("N2") : null,
+          ReffRate = i < agreementReferrallist?.Count ? agreementReferrallist[i].RefundRate?.ToString("N2") + "%" : null,
+        })
+        .ToList();
+
+        var agreementFeeInternalList = await _agreementFeeRepo.GetRowsByAgreementID(transaction, null, 0, int.MaxValue, ID, 1);
+
+        var agreementFeeNonlList = await _agreementFeeRepo.GetRowsByAgreementID(transaction, null, 0, int.MaxValue, ID, -1);
+
+        int maxFeeCount = Math.Max(agreementFeeInternalList?.Count ?? 0, agreementFeeNonlList?.Count ?? 0);
+
+        var combinedFeeList = Enumerable.Range(0, maxFeeCount)
+        .Select(i => new 
+        {
+          FeeNo = i < agreementFeeInternalList?.Count ? (i + 1) : (int?)null,
+          FeeName = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeName : null,
+          FeeAmount = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeAmount?.ToString("N2") : null,
+          FeeRate = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeRate?.ToString("N2") : null,
+          NonFeeNo = i < agreementFeeNonlList?.Count ? (i + 1) : (int?)null,
+          NonFeeName = i < agreementFeeNonlList?.Count ? agreementFeeNonlList[i].FeeName : null,
+          NonFeeAmount = i < agreementFeeNonlList?.Count ? agreementFeeNonlList[i].FeeAmount?.ToString("N2") : null,
+          NonFeeRate = i < agreementFeeNonlList?.Count ? agreementFeeNonlList[i].FeeRate?.ToString("N2") + "%" : null,
+        })
+        .ToList();
+
         var data = new Dictionary<string, object?>
         {
           ["AgreementNo"] = dataAgreementMarketing.AgreementNo ?? "-",
@@ -240,29 +294,26 @@ namespace Service
           ["NetIntMarginRate"] = dataAgreementMarketing.InterestMargin?.ToString("N2") ?? "0",
           ["NetIntMarginAmount"] = dataAgreementMarketing.NetInterestMarginAfterCost?.ToString("N2") ?? "0",
           
-          // ["FeeList"] = agreementFeeList?.Select((x, i) => new AgreementFeeList
-          // {
-          //   FeeNo = (i + 1),
-          //   FeeName = x.FeeName,
-          //   FeeAmount = x.FeeAmount,
-          //   FeeRate = x.FeeRate
-          // }).ToList(),
+          ["FeeList"] = combinedFeeList,
 
-          // ["CommList"] = agreementCommList?.Select((x, i) => new AgreementCommissionList
-          // {
-          //   CommNo = (i + 1),
-          //   CommName = x.CommName,
-          //   CommAmount = x.CommAmount,
-          //   CommRate = x.CommRate
-          // }).ToList(),
+          ["NonFeeList"] = new[]
+          {
+              new { Header = "No", PropName = "NonFeeNo" },
+              new { Header = "Introducer Name", PropName = "NonFeeName" },
+              new { Header = "Rate", PropName = "NonFeeRate" },
+              new { Header = "Amount", PropName = "NonFeeAmount" }
+          },
 
-          // ["ReffList"] = agreementReferrallist?.Select((x, i) => new AgreementReferralList
-          // {
-          //   ReferralNo = (i + 1),
-          //   ReferralName = x.ReferralName,
-          //   ReferralAmount = x.ReferralAmount,
-          //   ReferralRate = x.ReferralRate
-          // }).ToList(),
+          ["CommList"] = combinedList,
+
+          ["ReferralList"] = new[]
+          {
+              new { Header = "No", PropName = "ReffNo" },
+              new { Header = "Introducer Name", PropName = "ReffName" },
+              new { Header = "Rate", PropName = "ReffRate" },
+              new { Header = "Amount", PropName = "ReffAmount" }
+          },
+
         };
 
         // Panggil client
@@ -310,6 +361,37 @@ namespace Service
         throw new Exception($"Error downloading file '{FileName}': {ex.Message}", ex);
       }
     }
+
+    #region GenerateDocumentAllTypeDoc
+    public async Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementIncentiveMarketing dataAgreementMarketing)
+    {
+      using var connection = _repo.GetDbConnection();
+      using var transaction = connection.BeginTransaction();
+      try
+      {
+
+        FileDoc fileDoc = await GenerateDocumentFromTemplate(transaction, mimeType, ID, dataAgreementMarketing);
+
+        
+
+        string docName = "INCENTIVE_AGREEMENT";
+
+        transaction.Commit();
+        FileDoc result = new()
+        {
+          Content = fileDoc.Content,
+          Name = $"{docName}.{mimeType.ToLower()}",
+          MimeType = fileDoc.MimeType,
+        };
+        return result;
+      }
+      catch (Exception)
+      {
+        transaction.Rollback();
+        throw;
+      }
+    }
+    #endregion
 
     public async Task<int> ProcessSync(IDbTransaction transaction, InterfaceAgreementIncentiveMarketing interfaceModel)
     {

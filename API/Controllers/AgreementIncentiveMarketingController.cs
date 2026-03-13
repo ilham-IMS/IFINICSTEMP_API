@@ -162,6 +162,7 @@ namespace API.Controllers
 
         var resFeeProv = await _internalAPIClient.GetRow("IFINLOS", "ApplicationFee", "GetRowByApplicationMainIDFeeCode", parameters: new { ApplicationMainID = dataAgreementMarketing.ApplicationMainID, FeeCode = "PROV" }, headers: headers);
 
+        dataAgreementMarketing.ProvisionFeeAmount = resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0;
         dataAgreementMarketing.BPETotalAmount = (dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0);
         dataAgreementMarketing.BPETotal = ((dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.NetFinance ?? 1);
         dataAgreementMarketing.BPERatio = (dataAgreementMarketing.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount ?? 1);
@@ -202,6 +203,81 @@ namespace API.Controllers
 
         return File(html.Content, html.MimeType, html.Name);
         // return ResponseSuccess(new { HTML = html });
+      }
+      catch (Exception ex)
+      {
+        return ResponseError(ex);
+      }
+    }
+
+    [HttpPost("PrintDocument")]
+    public async Task<ActionResult> PrintDocument([FromBody] AgreementMarketing model)
+    {
+      var headers = Request.Headers.ToDictionary(x => x.Key, x => x.Value.ToString());
+
+      try
+      {
+        // Validasi ID dan MimeType dari model
+        if (string.IsNullOrEmpty(model.ID))
+          return BadRequest("ID is required");
+
+        if (string.IsNullOrEmpty(model.MimeType))
+          return BadRequest("MimeType is required");
+
+        // --- Ambil data AgreementMarketing ---
+        var dataAgreementMarketing = await _service.GetRowByID(model.ID);
+        if (dataAgreementMarketing == null)
+          return NotFound("Data agreement marketing not found");
+
+        var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
+        var sysCompany = resSysCompany?.Data ?? [];
+
+        dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+        dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
+
+        var resFeeProv = await _internalAPIClient.GetRow("IFINLOS", "ApplicationFee", "GetRowByApplicationMainIDFeeCode", parameters: new { ApplicationMainID = dataAgreementMarketing.ApplicationMainID, FeeCode = "PROV" }, headers: headers);
+
+        dataAgreementMarketing.ProvisionFeeAmount = resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0;
+        dataAgreementMarketing.BPETotalAmount = (dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0);
+        dataAgreementMarketing.BPETotal = ((dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.NetFinance ?? 1);
+        dataAgreementMarketing.BPERatio = (dataAgreementMarketing.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount ?? 1);
+        dataAgreementMarketing.BPEIncomeIncentiveExpense = ((dataAgreementMarketing.CommissionRate ?? 0) * (dataAgreementMarketing.TotalInsurancePremiAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) - dataAgreementMarketing.BPETotalAmount;
+        dataAgreementMarketing.BPEEffect = dataAgreementMarketing.BPEIncomeIncentiveExpense / ((dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0));
+
+        var resFeeNon = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", -1);
+        dataAgreementMarketing.NonInterestExpense = resFeeNon?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
+
+        var resFeeInt = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", 1);
+        dataAgreementMarketing.NonInterestIncome = resFeeInt?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
+
+        dataAgreementMarketing.NonInterestEffectAmount = dataAgreementMarketing.NonInterestIncome - dataAgreementMarketing.NonInterestExpense;
+
+        dataAgreementMarketing.NonInterestEffect = dataAgreementMarketing.NonInterestEffectAmount / ((dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0));
+
+        var totalInterestMargin = (dataAgreementMarketing.InterestMargin ?? 0) + (dataAgreementMarketing.BPEEffect ?? 0) + (dataAgreementMarketing.NonInterestEffect ?? 0);
+
+        var profitBeforeMarketingIncentive = (dataAgreementMarketing.InterestMarginAmount ?? 0) + (dataAgreementMarketing.BPEIncomeIncentiveExpense ?? 0) + (dataAgreementMarketing.NonInterestEffectAmount ?? 0);
+
+        dataAgreementMarketing.TotalInterestMargin = totalInterestMargin;
+        
+        dataAgreementMarketing.MarketingIncentiveRatio = profitBeforeMarketingIncentive * 0.0384m;
+        dataAgreementMarketing.NetInterestMarginAfterCost = profitBeforeMarketingIncentive - (dataAgreementMarketing.MarketingIncentiveRatio ?? 0);
+
+        dataAgreementMarketing.MarketingIncentiveRatioInterest = dataAgreementMarketing.MarketingIncentiveRatio / (dataAgreementMarketing.InterestMarginAmount * dataAgreementMarketing.InterestMargin * -1);
+
+        dataAgreementMarketing.MarketingIncentiveRatioFinance = dataAgreementMarketing.MarketingIncentiveRatio / dataAgreementMarketing.NetFinance ;
+
+        dataAgreementMarketing.InsurancePremiumUsageRatio = ((dataAgreementMarketing.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount * dataAgreementMarketing.CommissionRate);
+
+        dataAgreementMarketing.ProfitBeforeMarketingIncentive = dataAgreementMarketing.InterestMarginAmount + dataAgreementMarketing.BPEIncomeIncentiveExpense + dataAgreementMarketing.NonInterestEffectAmount;
+
+        dataAgreementMarketing.NetInterestMargin = dataAgreementMarketing.NetInterestMarginAfterCost / (dataAgreementMarketing.InterestMargin * dataAgreementMarketing.InterestMarginAmount);
+
+        var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!,model.ID!, dataAgreementMarketing);
+        return ResponseSuccess(content);
+        // var result = await _service.PrintDocument(dataWarningLetter);
+
+        // return ResponseSuccess(result);
       }
       catch (Exception ex)
       {

@@ -51,6 +51,7 @@ namespace Domain.Models
     public decimal? InsurancePremiumUsageRatio { get; set; }
     public decimal? ProfitBeforeMarketingIncentive { get; set; }
     public decimal? TotalInterestMargin { get; set; }
+    public decimal? ProvisionFeeAmount { get; set; }
 
     //Calculation
     public decimal? TotalRefundAmount { get; set; }

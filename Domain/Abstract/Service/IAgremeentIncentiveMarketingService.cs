@@ -8,6 +8,7 @@ namespace Domain.Abstract.Service
   {
     Task<List<AgreementIncentiveMarketing>> GetRowsByIncentiveID(string? keyword, int offset, int limit, string incentiveID);
     Task<FileDoc> GetPreview(AgreementIncentiveMarketing dataAgreementMarketing, string ID);
+    Task<FileDoc> GenerateDocumentAllTypeDoc(string mimeType, string ID, AgreementIncentiveMarketing dataAgreementMarketing);
     Task<int> ProcessSync(IDbTransaction transaction, InterfaceAgreementIncentiveMarketing interfaceModel);
   }
 }

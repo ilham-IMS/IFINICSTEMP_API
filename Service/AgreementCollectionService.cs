@@ -62,6 +62,26 @@ namespace Service
       }
     }
 
+    public async Task<List<AgreementCollection>> GetRowsByIncentiveID(string? keyword, int offset, int limit, string incentiveID)
+    {
+      using var connection = _repo.GetDbConnection();
+      using var transaction = connection.BeginTransaction();
+      {
+        try
+        {
+          var result = await _repo.GetRowsByIncentiveID(transaction, keyword, offset, limit, incentiveID);
+          transaction.Commit();
+          return result;
+        }
+        catch (Exception)
+        {
+          transaction.Rollback();
+          throw;
+        }
+
+      }
+    }
+
     public async Task<int> Insert(AgreementCollection model)
     {
       using var connection = _repo.GetDbConnection();

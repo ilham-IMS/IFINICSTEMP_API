@@ -34,6 +34,20 @@ namespace API.Controllers
       }
     }
 
+    [HttpGet("GetRowsByIncentiveID")]
+    public async Task<ActionResult> GetRowsByIncentiveID(string? keyword, int offset, int limit, string incentiveID)
+    {
+      try
+      {
+        var data = await _service.GetRowsByIncentiveID(keyword, offset, limit, incentiveID);
+        return ResponseSuccess(data);
+      }
+      catch (Exception ex)
+      {
+        return ResponseError(ex);
+      }
+    }
+
     [HttpGet("GetRowByID")]
     public async Task<ActionResult> GetRowByID(string ID)
     {
