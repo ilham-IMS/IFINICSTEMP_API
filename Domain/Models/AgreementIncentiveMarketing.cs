@@ -53,10 +53,15 @@ namespace Domain.Models
     public decimal? TotalInterestMargin { get; set; }
     public decimal? ProvisionFeeAmount { get; set; }
 
+    //Incentive Scheme
+    public decimal? IncentiveRatio { get; set; }
+
     //Calculation
     public decimal? TotalRefundAmount { get; set; }
 
-    //Company Info
+    //Print
+    public string? MimeType { get; set; }
+    public IFormFile? File { get; set; }
     public string? CompanyFileName { get; set; }
     public string? CompanyName { get; set; }
   }

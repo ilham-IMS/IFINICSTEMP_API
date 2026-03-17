@@ -6,5 +6,6 @@ namespace Domain.Abstract.Service
   {
     Task<int> ChangeStatus(IncentiveScheme model);
     Task<List<ExtendModel>> GetRowForParent(string ParentID);
+    Task<IncentiveScheme> GetIncentiveRatioMarketing(DateTime dateTime);
   }
 }

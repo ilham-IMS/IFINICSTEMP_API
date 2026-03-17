@@ -16,12 +16,14 @@ namespace API.Controllers
     private readonly IAgreementIncentiveMarketingService _service;
     private readonly IAgreementFeeService _agreementFeeService;
     private readonly InternalAPIClient _internalAPIClient;
+    private readonly IIncentiveSchemeService _incentiveSchemeService;
 
-    public AgreementIncentiveMarketingController(IAgreementIncentiveMarketingService service, IConfiguration configuration, InternalAPIClient internalAPIClient, IAgreementFeeService agreementFeeService) : base(configuration)
+    public AgreementIncentiveMarketingController(IAgreementIncentiveMarketingService service, IConfiguration configuration, InternalAPIClient internalAPIClient, IAgreementFeeService agreementFeeService, IIncentiveSchemeService incentiveSchemeService) : base(configuration)
     {
       _service = service;
       _internalAPIClient = internalAPIClient;
       _agreementFeeService = agreementFeeService;
+      _incentiveSchemeService = incentiveSchemeService;
     }
 
     [HttpGet("GetRows")]
@@ -45,9 +47,13 @@ namespace API.Controllers
       {
         var headers = Request.Headers.ToDictionary(x => x.Key, x => x.Value.ToString());
 
-        
+        var resItParam = await _internalAPIClient.GetRow("IFINSYS", "SysITParameter", "GetRow", headers: headers);
+        var itParam = resItParam.Data;
+        var SystemDateTime = itParam?["SystemDate"]?.GetValue<DateTime>() ?? throw new Exception("SystemDate is null");
 
         var data = await _service.GetRowsByIncentiveID(keyword, offset, limit, incentiveID);
+
+        var resIncentiveScheme = await _incentiveSchemeService.GetIncentiveRatioMarketing(SystemDateTime.Date);
 
         foreach (var item in data)
         {
@@ -57,7 +63,7 @@ namespace API.Controllers
           item.BPETotal = (item.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0) / (item.NetFinance ?? 1);
           item.BPERatio = (item.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (item.TotalInsurancePremiAmount ?? 1);
           item.BPEIncomeIncentiveExpense = ((item.CommissionRate ?? 0) * (item.TotalInsurancePremiAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) - item.BPETotalAmount;
-          item.BPEEffect = item.BPEIncomeIncentiveExpense / ((item.InterestMargin ?? 0) * (item.InterestMarginAmount ?? 0));
+          item.BPEEffect = ((item.InterestMargin ?? 1) * (item.InterestMarginAmount ?? 1)) != 0 ? item.BPEIncomeIncentiveExpense / ((item.InterestMargin ?? 1) * (item.InterestMarginAmount ?? 1)) : 0;
 
           var resFeeNon = await _agreementFeeService.GetRowsByAgreementID("", 0, 1, item.ID ?? "", -1);
           item.NonInterestExpense = resFeeNon?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
@@ -66,13 +72,13 @@ namespace API.Controllers
           item.NonInterestIncome = resFeeInt?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
 
           item.NonInterestEffectAmount = item.NonInterestIncome - item.NonInterestExpense;
-          item.NonInterestEffect = item.NonInterestEffectAmount / ((item.InterestMargin ?? 0) * (item.InterestMarginAmount ?? 0));
+          item.NonInterestEffect = ((item.InterestMargin ?? 1) * (item.InterestMarginAmount ?? 1)) != 0 ? item.NonInterestEffectAmount / ((item.InterestMargin ?? 1) * (item.InterestMarginAmount ?? 1)) : 0;
 
           var totalInterestMargin = (item.InterestMargin ?? 0) + (item.BPEEffect ?? 0) + (item.NonInterestEffect ?? 0);
           var profitBeforeMarketingIncentive = (item.InterestMarginAmount ?? 0) + (item.BPEIncomeIncentiveExpense ?? 0) + (item.NonInterestEffectAmount ?? 0);
-          item.MarketingIncentiveRatio = profitBeforeMarketingIncentive * 0.0384m;
+          item.MarketingIncentiveRatio = profitBeforeMarketingIncentive * (resIncentiveScheme.IncentiveRatio ?? 0);
           item.NetInterestMarginAfterCost = profitBeforeMarketingIncentive - (item.MarketingIncentiveRatio ?? 0);
-          item.InsurancePremiumUsageRatio = ((item.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (item.TotalInsurancePremiAmount * item.CommissionRate);
+          item.InsurancePremiumUsageRatio = ((item.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (item.TotalInsurancePremiAmount ?? 1 * item.CommissionRate ?? 1);
           item.ProfitBeforeMarketingIncentive = item.InterestMarginAmount + item.BPEIncomeIncentiveExpense + item.NonInterestEffectAmount;
         }
 
@@ -140,149 +146,168 @@ namespace API.Controllers
     [HttpGet("GetHTMLPreview")]
     public async Task<ActionResult> GetHTMLPreview(string ID)
     {
-      var headers = Request.Headers.ToDictionary(x => x.Key, x => x.Value.ToString());
+        var headers = Request.Headers.ToDictionary(x => x.Key, x => x.Value.ToString());
 
-      try
-      {
-        // Validasi ID dan MimeType dari model
-        if (string.IsNullOrEmpty(ID))
-          return BadRequest("ID is required");
+        try
+        {
+            if (string.IsNullOrEmpty(ID))
+                return BadRequest("ID is required");
 
-        // --- Ambil data AgreementMarketing ---
-        var dataAgreementMarketing = await _service.GetRowByID(ID);
-        if (dataAgreementMarketing == null)
-          return NotFound("Data agreement incentive marketing not found");
+            var resItParam = await _internalAPIClient.GetRow("IFINSYS", "SysITParameter", "GetRow", headers: headers);
+            var itParam = resItParam.Data;
+            var SystemDateTime = itParam?["SystemDate"]?.GetValue<DateTime>() ?? throw new Exception("SystemDate is null");
 
-        var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
-        var sysCompany = resSysCompany?.Data ?? [];
+            var resIncentiveScheme = await _incentiveSchemeService.GetIncentiveRatioMarketing(SystemDateTime.Date);
 
+            var dataAgreementMarketing = await _service.GetRowByID(ID);
+            if (dataAgreementMarketing == null)
+                return NotFound("Data agreement incentive marketing not found");
 
-        dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
-        dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
+            var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
+            var sysCompany = resSysCompany?.Data ?? [];
 
-        var resFeeProv = await _internalAPIClient.GetRow("IFINLOS", "ApplicationFee", "GetRowByApplicationMainIDFeeCode", parameters: new { ApplicationMainID = dataAgreementMarketing.ApplicationMainID, FeeCode = "PROV" }, headers: headers);
+            dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+            dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        dataAgreementMarketing.ProvisionFeeAmount = resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0;
-        dataAgreementMarketing.BPETotalAmount = (dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0);
-        dataAgreementMarketing.BPETotal = ((dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.NetFinance ?? 1);
-        dataAgreementMarketing.BPERatio = (dataAgreementMarketing.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount ?? 1);
-        dataAgreementMarketing.BPEIncomeIncentiveExpense = ((dataAgreementMarketing.CommissionRate ?? 0) * (dataAgreementMarketing.TotalInsurancePremiAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) - dataAgreementMarketing.BPETotalAmount;
-        dataAgreementMarketing.BPEEffect = dataAgreementMarketing.BPEIncomeIncentiveExpense / ((dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0));
+            dataAgreementMarketing.IncentiveRatio = resIncentiveScheme.IncentiveRatio;
 
-        var resFeeNon = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", -1);
-        dataAgreementMarketing.NonInterestExpense = resFeeNon?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
+            var resFeeProv = await _internalAPIClient.GetRow("IFINLOS", "ApplicationFee", "GetRowByApplicationMainIDFeeCode", parameters: new { ApplicationMainID = dataAgreementMarketing.ApplicationMainID, FeeCode = "PROV" }, headers: headers);
 
-        var resFeeInt = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", 1);
-        dataAgreementMarketing.NonInterestIncome = resFeeInt?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
+            dataAgreementMarketing.ProvisionFeeAmount = resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0;
+            dataAgreementMarketing.BPETotalAmount = (dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0);
+            
+            var netFinance = (dataAgreementMarketing.NetFinance ?? 1);
+            dataAgreementMarketing.BPETotal = netFinance != 0 ? ((dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / netFinance : 0;
+            
+            var totalInsurancePremium = (dataAgreementMarketing.TotalInsurancePremiAmount ?? 1);
+            dataAgreementMarketing.BPERatio = totalInsurancePremium != 0 ? (dataAgreementMarketing.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / totalInsurancePremium : 0;
+            
+            dataAgreementMarketing.BPEIncomeIncentiveExpense = ((dataAgreementMarketing.CommissionRate ?? 0) * (dataAgreementMarketing.TotalInsurancePremiAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) - dataAgreementMarketing.BPETotalAmount;
+            
+            var interestMarginDivisor = (dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0);
+            dataAgreementMarketing.BPEEffect = interestMarginDivisor != 0 ? dataAgreementMarketing.BPEIncomeIncentiveExpense / interestMarginDivisor : 0;
 
-        dataAgreementMarketing.NonInterestEffectAmount = dataAgreementMarketing.NonInterestIncome - dataAgreementMarketing.NonInterestExpense;
+            var resFeeNon = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", -1);
+            dataAgreementMarketing.NonInterestExpense = resFeeNon?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
 
-        dataAgreementMarketing.NonInterestEffect = dataAgreementMarketing.NonInterestEffectAmount / ((dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0));
+            var resFeeInt = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", 1);
+            dataAgreementMarketing.NonInterestIncome = resFeeInt?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
 
-        var totalInterestMargin = (dataAgreementMarketing.InterestMargin ?? 0) + (dataAgreementMarketing.BPEEffect ?? 0) + (dataAgreementMarketing.NonInterestEffect ?? 0);
+            dataAgreementMarketing.NonInterestEffectAmount = dataAgreementMarketing.NonInterestIncome - dataAgreementMarketing.NonInterestExpense;
+            dataAgreementMarketing.NonInterestEffect = interestMarginDivisor != 0 ? dataAgreementMarketing.NonInterestEffectAmount / interestMarginDivisor : 0;
 
-        var profitBeforeMarketingIncentive = (dataAgreementMarketing.InterestMarginAmount ?? 0) + (dataAgreementMarketing.BPEIncomeIncentiveExpense ?? 0) + (dataAgreementMarketing.NonInterestEffectAmount ?? 0);
+            var totalInterestMargin = (dataAgreementMarketing.InterestMargin ?? 0) + (dataAgreementMarketing.BPEEffect ?? 0) + (dataAgreementMarketing.NonInterestEffect ?? 0);
+            var profitBeforeMarketingIncentive = (dataAgreementMarketing.InterestMarginAmount ?? 0) + (dataAgreementMarketing.BPEIncomeIncentiveExpense ?? 0) + (dataAgreementMarketing.NonInterestEffectAmount ?? 0);
 
-        dataAgreementMarketing.TotalInterestMargin = totalInterestMargin;
-        
-        dataAgreementMarketing.MarketingIncentiveRatio = profitBeforeMarketingIncentive * 0.0384m;
-        dataAgreementMarketing.NetInterestMarginAfterCost = profitBeforeMarketingIncentive - (dataAgreementMarketing.MarketingIncentiveRatio ?? 0);
+            dataAgreementMarketing.TotalInterestMargin = totalInterestMargin;
+            dataAgreementMarketing.MarketingIncentiveRatio = profitBeforeMarketingIncentive * (resIncentiveScheme.IncentiveRatio ?? 0);
+            dataAgreementMarketing.NetInterestMarginAfterCost = profitBeforeMarketingIncentive - (dataAgreementMarketing.MarketingIncentiveRatio ?? 0);
 
-        dataAgreementMarketing.MarketingIncentiveRatioInterest = dataAgreementMarketing.MarketingIncentiveRatio / (dataAgreementMarketing.InterestMarginAmount * dataAgreementMarketing.InterestMargin * -1);
+            var interestMarginRatioDivisor = (dataAgreementMarketing.InterestMarginAmount * dataAgreementMarketing.InterestMargin * -1);
+            dataAgreementMarketing.MarketingIncentiveRatioInterest = interestMarginRatioDivisor != 0 ? dataAgreementMarketing.MarketingIncentiveRatio / interestMarginRatioDivisor : 0;
 
-        dataAgreementMarketing.MarketingIncentiveRatioFinance = dataAgreementMarketing.MarketingIncentiveRatio / dataAgreementMarketing.NetFinance ;
+            dataAgreementMarketing.MarketingIncentiveRatioFinance = netFinance != 0 ? dataAgreementMarketing.MarketingIncentiveRatio / netFinance : 0;
 
-        dataAgreementMarketing.InsurancePremiumUsageRatio = ((dataAgreementMarketing.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount * dataAgreementMarketing.CommissionRate);
+            var insurancePremiumDivisor = (dataAgreementMarketing.TotalInsurancePremiAmount * dataAgreementMarketing.CommissionRate);
+            dataAgreementMarketing.InsurancePremiumUsageRatio = insurancePremiumDivisor != 0 ? (((dataAgreementMarketing.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / insurancePremiumDivisor) : 0;
 
-        dataAgreementMarketing.ProfitBeforeMarketingIncentive = dataAgreementMarketing.InterestMarginAmount + dataAgreementMarketing.BPEIncomeIncentiveExpense + dataAgreementMarketing.NonInterestEffectAmount;
+            dataAgreementMarketing.ProfitBeforeMarketingIncentive = dataAgreementMarketing.InterestMarginAmount + dataAgreementMarketing.BPEIncomeIncentiveExpense + dataAgreementMarketing.NonInterestEffectAmount;
 
-        dataAgreementMarketing.NetInterestMargin = dataAgreementMarketing.NetInterestMarginAfterCost / (dataAgreementMarketing.InterestMargin * dataAgreementMarketing.InterestMarginAmount);
+            var netInterestMarginDivisor = (dataAgreementMarketing.InterestMargin * dataAgreementMarketing.InterestMarginAmount);
+            dataAgreementMarketing.NetInterestMargin = netInterestMarginDivisor != 0 ? dataAgreementMarketing.NetInterestMarginAfterCost / netInterestMarginDivisor : 0;
 
-        // --- Generate HTML ---
-        var html = await _service.GetPreview(dataAgreementMarketing, ID);
-
-        return File(html.Content, html.MimeType, html.Name);
-        // return ResponseSuccess(new { HTML = html });
-      }
-      catch (Exception ex)
-      {
-        return ResponseError(ex);
-      }
+            var html = await _service.GetPreview(dataAgreementMarketing, ID);
+            return File(html.Content, html.MimeType, html.Name);
+        }
+        catch (Exception ex)
+        {
+            return ResponseError(ex);
+        }
     }
 
     [HttpPost("PrintDocument")]
-    public async Task<ActionResult> PrintDocument([FromBody] AgreementMarketing model)
+    public async Task<ActionResult> PrintDocument([FromBody] AgreementIncentiveMarketing model)
     {
-      var headers = Request.Headers.ToDictionary(x => x.Key, x => x.Value.ToString());
+        var headers = Request.Headers.ToDictionary(x => x.Key, x => x.Value.ToString());
 
-      try
-      {
-        // Validasi ID dan MimeType dari model
-        if (string.IsNullOrEmpty(model.ID))
-          return BadRequest("ID is required");
+        try
+        {
+            if (string.IsNullOrEmpty(model.ID))
+                return BadRequest("ID is required");
 
-        if (string.IsNullOrEmpty(model.MimeType))
-          return BadRequest("MimeType is required");
+            var resItParam = await _internalAPIClient.GetRow("IFINSYS", "SysITParameter", "GetRow", headers: headers);
+            var itParam = resItParam.Data;
+            var SystemDateTime = itParam?["SystemDate"]?.GetValue<DateTime>() ?? throw new Exception("SystemDate is null");
 
-        // --- Ambil data AgreementMarketing ---
-        var dataAgreementMarketing = await _service.GetRowByID(model.ID);
-        if (dataAgreementMarketing == null)
-          return NotFound("Data agreement marketing not found");
+            var resIncentiveScheme = await _incentiveSchemeService.GetIncentiveRatioMarketing(SystemDateTime.Date);
 
-        var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
-        var sysCompany = resSysCompany?.Data ?? [];
+            if (string.IsNullOrEmpty(model.MimeType))
+                return BadRequest("MimeType is required");
 
-        dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
-        dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
+            var dataAgreementMarketing = await _service.GetRowByID(model.ID);
+            if (dataAgreementMarketing == null)
+                return NotFound("Data agreement marketing not found");
 
-        var resFeeProv = await _internalAPIClient.GetRow("IFINLOS", "ApplicationFee", "GetRowByApplicationMainIDFeeCode", parameters: new { ApplicationMainID = dataAgreementMarketing.ApplicationMainID, FeeCode = "PROV" }, headers: headers);
+            var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
+            var sysCompany = resSysCompany?.Data ?? [];
 
-        dataAgreementMarketing.ProvisionFeeAmount = resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0;
-        dataAgreementMarketing.BPETotalAmount = (dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0);
-        dataAgreementMarketing.BPETotal = ((dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.NetFinance ?? 1);
-        dataAgreementMarketing.BPERatio = (dataAgreementMarketing.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount ?? 1);
-        dataAgreementMarketing.BPEIncomeIncentiveExpense = ((dataAgreementMarketing.CommissionRate ?? 0) * (dataAgreementMarketing.TotalInsurancePremiAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) - dataAgreementMarketing.BPETotalAmount;
-        dataAgreementMarketing.BPEEffect = dataAgreementMarketing.BPEIncomeIncentiveExpense / ((dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0));
+            dataAgreementMarketing.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
+            dataAgreementMarketing.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        var resFeeNon = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", -1);
-        dataAgreementMarketing.NonInterestExpense = resFeeNon?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
+            dataAgreementMarketing.IncentiveRatio = resIncentiveScheme.IncentiveRatio;
 
-        var resFeeInt = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", 1);
-        dataAgreementMarketing.NonInterestIncome = resFeeInt?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
+            var resFeeProv = await _internalAPIClient.GetRow("IFINLOS", "ApplicationFee", "GetRowByApplicationMainIDFeeCode", parameters: new { ApplicationMainID = dataAgreementMarketing.ApplicationMainID, FeeCode = "PROV" }, headers: headers);
 
-        dataAgreementMarketing.NonInterestEffectAmount = dataAgreementMarketing.NonInterestIncome - dataAgreementMarketing.NonInterestExpense;
+            dataAgreementMarketing.ProvisionFeeAmount = resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0;
+            dataAgreementMarketing.BPETotalAmount = (dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0);
+            
+            var netFinance = (dataAgreementMarketing.NetFinance ?? 1);
+            dataAgreementMarketing.BPETotal = netFinance != 0 ? ((dataAgreementMarketing.TotalRefundAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / netFinance : 0;
+            
+            var totalInsurancePremium = (dataAgreementMarketing.TotalInsurancePremiAmount ?? 1);
+            dataAgreementMarketing.BPERatio = totalInsurancePremium != 0 ? (dataAgreementMarketing.BPETotalAmount - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / totalInsurancePremium : 0;
+            
+            dataAgreementMarketing.BPEIncomeIncentiveExpense = ((dataAgreementMarketing.CommissionRate ?? 0) * (dataAgreementMarketing.TotalInsurancePremiAmount ?? 0) + (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) - dataAgreementMarketing.BPETotalAmount;
+            
+            var interestMarginDivisor = (dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0);
+            dataAgreementMarketing.BPEEffect = interestMarginDivisor != 0 ? dataAgreementMarketing.BPEIncomeIncentiveExpense / interestMarginDivisor : 0;
 
-        dataAgreementMarketing.NonInterestEffect = dataAgreementMarketing.NonInterestEffectAmount / ((dataAgreementMarketing.InterestMargin ?? 0) * (dataAgreementMarketing.InterestMarginAmount ?? 0));
+            var resFeeNon = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", -1);
+            dataAgreementMarketing.NonInterestExpense = resFeeNon?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
 
-        var totalInterestMargin = (dataAgreementMarketing.InterestMargin ?? 0) + (dataAgreementMarketing.BPEEffect ?? 0) + (dataAgreementMarketing.NonInterestEffect ?? 0);
+            var resFeeInt = await _agreementFeeService.GetRowsByAgreementID("", 0, int.MaxValue, dataAgreementMarketing.ID ?? "", 1);
+            dataAgreementMarketing.NonInterestIncome = resFeeInt?.Where(x => x.FeeAmount != null).Sum(x => x.FeeAmount ?? 0) ?? 0;
 
-        var profitBeforeMarketingIncentive = (dataAgreementMarketing.InterestMarginAmount ?? 0) + (dataAgreementMarketing.BPEIncomeIncentiveExpense ?? 0) + (dataAgreementMarketing.NonInterestEffectAmount ?? 0);
+            dataAgreementMarketing.NonInterestEffectAmount = dataAgreementMarketing.NonInterestIncome - dataAgreementMarketing.NonInterestExpense;
+            dataAgreementMarketing.NonInterestEffect = interestMarginDivisor != 0 ? dataAgreementMarketing.NonInterestEffectAmount / interestMarginDivisor : 0;
 
-        dataAgreementMarketing.TotalInterestMargin = totalInterestMargin;
-        
-        dataAgreementMarketing.MarketingIncentiveRatio = profitBeforeMarketingIncentive * 0.0384m;
-        dataAgreementMarketing.NetInterestMarginAfterCost = profitBeforeMarketingIncentive - (dataAgreementMarketing.MarketingIncentiveRatio ?? 0);
+            var totalInterestMargin = (dataAgreementMarketing.InterestMargin ?? 0) + (dataAgreementMarketing.BPEEffect ?? 0) + (dataAgreementMarketing.NonInterestEffect ?? 0);
+            var profitBeforeMarketingIncentive = (dataAgreementMarketing.InterestMarginAmount ?? 0) + (dataAgreementMarketing.BPEIncomeIncentiveExpense ?? 0) + (dataAgreementMarketing.NonInterestEffectAmount ?? 0);
 
-        dataAgreementMarketing.MarketingIncentiveRatioInterest = dataAgreementMarketing.MarketingIncentiveRatio / (dataAgreementMarketing.InterestMarginAmount * dataAgreementMarketing.InterestMargin * -1);
+            dataAgreementMarketing.TotalInterestMargin = totalInterestMargin;
+            dataAgreementMarketing.MarketingIncentiveRatio = profitBeforeMarketingIncentive * (resIncentiveScheme.IncentiveRatio ?? 0);
+            dataAgreementMarketing.NetInterestMarginAfterCost = profitBeforeMarketingIncentive - (dataAgreementMarketing.MarketingIncentiveRatio ?? 0);
 
-        dataAgreementMarketing.MarketingIncentiveRatioFinance = dataAgreementMarketing.MarketingIncentiveRatio / dataAgreementMarketing.NetFinance ;
+            var interestMarginRatioDivisor = (dataAgreementMarketing.InterestMarginAmount * dataAgreementMarketing.InterestMargin * -1);
+            dataAgreementMarketing.MarketingIncentiveRatioInterest = interestMarginRatioDivisor != 0 ? dataAgreementMarketing.MarketingIncentiveRatio / interestMarginRatioDivisor : 0;
 
-        dataAgreementMarketing.InsurancePremiumUsageRatio = ((dataAgreementMarketing.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / (dataAgreementMarketing.TotalInsurancePremiAmount * dataAgreementMarketing.CommissionRate);
+            dataAgreementMarketing.MarketingIncentiveRatioFinance = netFinance != 0 ? dataAgreementMarketing.MarketingIncentiveRatio / netFinance : 0;
 
-        dataAgreementMarketing.ProfitBeforeMarketingIncentive = dataAgreementMarketing.InterestMarginAmount + dataAgreementMarketing.BPEIncomeIncentiveExpense + dataAgreementMarketing.NonInterestEffectAmount;
+            var insurancePremiumDivisor = (dataAgreementMarketing.TotalInsurancePremiAmount * dataAgreementMarketing.CommissionRate);
+            dataAgreementMarketing.InsurancePremiumUsageRatio = insurancePremiumDivisor != 0 ? (((dataAgreementMarketing.BPETotalAmount ?? 0) - (resFeeProv?.Data?["FeeAmount"]?.GetValue<decimal>() ?? 0)) / insurancePremiumDivisor) : 0;
 
-        dataAgreementMarketing.NetInterestMargin = dataAgreementMarketing.NetInterestMarginAfterCost / (dataAgreementMarketing.InterestMargin * dataAgreementMarketing.InterestMarginAmount);
+            dataAgreementMarketing.ProfitBeforeMarketingIncentive = dataAgreementMarketing.InterestMarginAmount + dataAgreementMarketing.BPEIncomeIncentiveExpense + dataAgreementMarketing.NonInterestEffectAmount;
 
-        var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!,model.ID!, dataAgreementMarketing);
-        return ResponseSuccess(content);
-        // var result = await _service.PrintDocument(dataWarningLetter);
+            var netInterestMarginDivisor = (dataAgreementMarketing.InterestMargin * dataAgreementMarketing.InterestMarginAmount);
+            dataAgreementMarketing.NetInterestMargin = netInterestMarginDivisor != 0 ? dataAgreementMarketing.NetInterestMarginAfterCost / netInterestMarginDivisor : 0;
 
-        // return ResponseSuccess(result);
-      }
-      catch (Exception ex)
-      {
-        return ResponseError(ex);
-      }
+            var content = await _service.GenerateDocumentAllTypeDoc(model.MimeType!, model.ID!, dataAgreementMarketing);
+            return ResponseSuccess(content);
+        }
+        catch (Exception ex)
+        {
+            return ResponseError(ex);
+        }
     }
   }
 }

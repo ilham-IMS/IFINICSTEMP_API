@@ -42,6 +42,27 @@ namespace Service
       }
     }
 
+    public async Task<IncentiveScheme> GetIncentiveRatioMarketing(DateTime dateTime)
+    {
+      using var connection = _repo.GetDbConnection();
+      using var transaction = connection.BeginTransaction();
+      {
+        try
+        {
+          var result = await _repo.GetIncentiveRatioMarketing(transaction, dateTime);
+          transaction.Commit();
+          return result;
+        }
+
+        catch (Exception)
+        {
+          transaction.Rollback();
+          throw;
+        }
+
+      }
+    }
+
     public async Task<List<IncentiveScheme>> GetRows(string? keyword, int offset, int limit)
     {
       using var connection = _repo.GetDbConnection();
@@ -196,82 +217,82 @@ namespace Service
 		}
 
     
-private async Task<int> InsertExt(IDbTransaction transaction, dynamic tempProperties, IncentiveScheme model)
-    {
-      var properties = await DeserializeProperties(tempProperties);
-      if (properties == null) return 0;
-      int resultExt = 0;
-      foreach (var property in properties)
-      {
-        var extendModel = new ExtendModel
+    private async Task<int> InsertExt(IDbTransaction transaction, dynamic tempProperties, IncentiveScheme model)
         {
-          ID = Guid.NewGuid().ToString("N").ToLower(),
-          CreDate = model.CreDate,
-          CreBy = model.CreBy,
-          CreIPAddress = model.CreIPAddress,
-          ModDate = model.ModDate,
-          ModBy = model.ModBy,
-          ModIPAddress = model.ModIPAddress,
-          ParentID = model.ID,
-          Keyy = property.Key,
-          Value = property.Value,
-          Properties = null
-        };
-        resultExt += await _repoExt.Insert(transaction, extendModel);
-      }
-      return resultExt;
-    }
-
-private async Task<int> UpdateExt<T>(IDbTransaction transaction, dynamic tempProperties, List<ExtendModel> extProperties, T model) where T : ExtendModel
-    {
-      int result = 0;
-      var properties = await DeserializeProperties(tempProperties);
-      foreach (var property in properties)
-      {
-        var keyy = property.Key;
-        var value = property.Value;
-
-        if (value is not string)
-        {
-          value = value.ToString();
-        }
-
-        if (extProperties.Any(e => e.Keyy == keyy))
-        {
-          var extendModel = new ExtendModel
+          var properties = await DeserializeProperties(tempProperties);
+          if (properties == null) return 0;
+          int resultExt = 0;
+          foreach (var property in properties)
           {
-            ParentID = model.ID,
-            ModDate = model.ModDate,
-            ModBy = model.ModBy,
-            ModIPAddress = model.ModIPAddress,
-            Keyy = keyy,
-            Value = value,
-            Properties = null
-          };
-          result += await _repoExt.UpdateByID(transaction, extendModel);
+            var extendModel = new ExtendModel
+            {
+              ID = Guid.NewGuid().ToString("N").ToLower(),
+              CreDate = model.CreDate,
+              CreBy = model.CreBy,
+              CreIPAddress = model.CreIPAddress,
+              ModDate = model.ModDate,
+              ModBy = model.ModBy,
+              ModIPAddress = model.ModIPAddress,
+              ParentID = model.ID,
+              Keyy = property.Key,
+              Value = property.Value,
+              Properties = null
+            };
+            resultExt += await _repoExt.Insert(transaction, extendModel);
+          }
+          return resultExt;
         }
-        else
-        {
-          var extendModel = new ExtendModel
-          {
-            ID = Guid.NewGuid().ToString("N").ToLower(),
-            CreDate = model.CreDate,
-            CreBy = model.CreBy,
-            CreIPAddress = model.CreIPAddress,
-            ModDate = model.ModDate,
-            ModBy = model.ModBy,
-            ModIPAddress = model.ModIPAddress,
-            ParentID = model.ID,
-            Keyy = keyy,
-            Value = value,
-            Properties = null
-          };
-          result += await _repoExt.Insert(transaction, extendModel);
-        }
-      }
 
-      return result;
-    }
+    private async Task<int> UpdateExt<T>(IDbTransaction transaction, dynamic tempProperties, List<ExtendModel> extProperties, T model) where T : ExtendModel
+        {
+          int result = 0;
+          var properties = await DeserializeProperties(tempProperties);
+          foreach (var property in properties)
+          {
+            var keyy = property.Key;
+            var value = property.Value;
+
+            if (value is not string)
+            {
+              value = value.ToString();
+            }
+
+            if (extProperties.Any(e => e.Keyy == keyy))
+            {
+              var extendModel = new ExtendModel
+              {
+                ParentID = model.ID,
+                ModDate = model.ModDate,
+                ModBy = model.ModBy,
+                ModIPAddress = model.ModIPAddress,
+                Keyy = keyy,
+                Value = value,
+                Properties = null
+              };
+              result += await _repoExt.UpdateByID(transaction, extendModel);
+            }
+            else
+            {
+              var extendModel = new ExtendModel
+              {
+                ID = Guid.NewGuid().ToString("N").ToLower(),
+                CreDate = model.CreDate,
+                CreBy = model.CreBy,
+                CreIPAddress = model.CreIPAddress,
+                ModDate = model.ModDate,
+                ModBy = model.ModBy,
+                ModIPAddress = model.ModIPAddress,
+                ParentID = model.ID,
+                Keyy = keyy,
+                Value = value,
+                Properties = null
+              };
+              result += await _repoExt.Insert(transaction, extendModel);
+            }
+          }
+
+          return result;
+        }
 
 
     public async Task<List<ExtendModel>> GetRowForParent(string ID)

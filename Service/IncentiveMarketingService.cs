@@ -184,8 +184,8 @@ namespace Service
                 { "PrintTime", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" },
                 { "CompanyName", incentiveMarketingData.CompanyName ?? "-" },
                 { "ImageLogo", imageHtml },
-                { "PeriodeFrom", incentiveMarketingData.IncentivePeriode ?? "-" },
-                { "PeriodeTo", incentiveMarketingData.IncentivePeriode ?? "-" }
+                { "PeriodeFrom", incentiveMarketingData.PeriodeFrom ?? "-" },
+                { "PeriodeTo", incentiveMarketingData.PeriodeTo ?? "-" }
             };
 
         foreach (var parameter in parameters)
@@ -262,8 +262,8 @@ namespace Service
                 { "PrintDate", systemDate.ToString("dddd, MMMM d yyyy", CultureInfo.InvariantCulture) },
                 { "PrintTime", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" },
                 { "CompanyName", incentiveMarketingData.CompanyName ?? "-" },
-                { "PeriodeFrom", incentiveMarketingData.IncentivePeriode ?? "-" },
-                { "PeriodeTo", incentiveMarketingData.IncentivePeriode ?? "-" }
+                { "PeriodeFrom", incentiveMarketingData.PeriodeFrom ?? "-" },
+                { "PeriodeTo", incentiveMarketingData.PeriodeTo ?? "-" }
             };
 
         foreach (var parameter in parameters)

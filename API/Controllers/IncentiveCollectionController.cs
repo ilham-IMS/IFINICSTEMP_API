@@ -90,8 +90,8 @@ namespace API.Controllers
     }
 
     #region GetHTMLPreview
-    [HttpGet("GetHTMLPreview")]
-    public async Task<ActionResult> GetHTMLPreview(string id, string? PeriodeFrom, string? PeriodeTo)
+    [HttpPost("GetHTMLPreview")]
+    public async Task<ActionResult> GetHTMLPreview(string[] ids, string? PeriodeFrom, string? PeriodeTo)
     {
       try
       {
@@ -100,14 +100,14 @@ namespace API.Controllers
         var resSysCompany = await _internalAPIClient.GetRow("IFINSYS", "SysCompany", "GetRowByCode", parameters: new { code = "COMP" }, headers: headers);
         var sysCompany = resSysCompany?.Data ?? [];
 
-        var incentiveCollectionData = await _service.GetRowByID(id);
+        var incentiveCollectionData = await _service.GetRowByID(ids.FirstOrDefault()!);
 
         incentiveCollectionData.PeriodeFrom = PeriodeFrom;
         incentiveCollectionData.PeriodeTo = PeriodeTo;
         incentiveCollectionData.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
         incentiveCollectionData.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        var result = await _service.GetHTMLPreview(id, incentiveCollectionData);
+        var result = await _service.GetHTMLPreview(ids, incentiveCollectionData);
         return ResponseSuccess(new { HTML = result });
 
       }
@@ -118,12 +118,12 @@ namespace API.Controllers
     }
     #endregion
     #region PrintDocument
-    [HttpGet("PrintDocument")]
-    public async Task<ActionResult> PrintDocument(string mimeType, string id, string? PeriodeFrom, string? PeriodeTo)
+    [HttpPost("PrintDocument")]
+    public async Task<ActionResult> PrintDocument(string mimeType, string[] ids, string? PeriodeFrom, string? PeriodeTo)
     {
       try
       {
-        var incentiveCollectionData = await _service.GetRowByID(id);
+        var incentiveCollectionData = await _service.GetRowByID(ids.FirstOrDefault()!);
 
         var headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
 
@@ -135,7 +135,7 @@ namespace API.Controllers
         incentiveCollectionData.CompanyFileName = sysCompany?["FileName"]?.GetValue<string>();
         incentiveCollectionData.CompanyName = sysCompany?["Name"]?.GetValue<string>();
 
-        var content = await _service.PrintDocument(mimeType, id, incentiveCollectionData);
+        var content = await _service.PrintDocument(mimeType, ids, incentiveCollectionData);
         return ResponseSuccess(content);
 
       }

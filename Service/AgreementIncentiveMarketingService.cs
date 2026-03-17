@@ -241,7 +241,7 @@ namespace Service
           FeeNo = i < agreementFeeInternalList?.Count ? (i + 1) : (int?)null,
           FeeName = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeName : null,
           FeeAmount = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeAmount?.ToString("N2") : null,
-          FeeRate = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeRate?.ToString("N2") : null,
+          FeeRate = i < agreementFeeInternalList?.Count ? agreementFeeInternalList[i].FeeRate?.ToString("N2") + "%" : null,
           NonFeeNo = i < agreementFeeNonlList?.Count ? (i + 1) : (int?)null,
           NonFeeName = i < agreementFeeNonlList?.Count ? agreementFeeNonlList[i].FeeName : null,
           NonFeeAmount = i < agreementFeeNonlList?.Count ? agreementFeeNonlList[i].FeeAmount?.ToString("N2") : null,
@@ -293,6 +293,8 @@ namespace Service
           ["IncAmount"] = dataAgreementMarketing.MarketingIncentiveRatio?.ToString("N2") ?? "0",
           ["NetIntMarginRate"] = dataAgreementMarketing.InterestMargin?.ToString("N2") ?? "0",
           ["NetIntMarginAmount"] = dataAgreementMarketing.NetInterestMarginAfterCost?.ToString("N2") ?? "0",
+          ["IncentiveRatio"] = dataAgreementMarketing.IncentiveRatio?.ToString("N2") ?? "0",
+          
           
           ["FeeList"] = combinedFeeList,
 

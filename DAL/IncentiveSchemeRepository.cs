@@ -37,6 +37,42 @@ namespace DAL
       return result;
     }
 
+    public async Task<IncentiveScheme> GetIncentiveRatioMarketing(IDbTransaction transaction, DateTime dateTime)
+    {
+      var p = db.Symbol();
+
+      string query =
+                $@"
+                    SELECT TOP 1
+                        id                    AS ID,
+                        incentive_type        AS IncentiveType,
+                        eff_date              AS EffDate,
+                        is_active             AS IsActive,
+                        incentive_ratio       AS IncentiveRatio,
+                        rate_penalty          AS RatePenalty,
+                        overdue_days_from     AS OverdueDaysFrom,
+                        overdue_days_to       AS OverdueDaysTo,
+                        minimum_amount        AS MinimumAmount,
+                        maximum_amount        AS MaximumAmount
+                    FROM
+                        {tableBase}
+                    WHERE
+                        incentive_type = {p}Type
+                        AND eff_date <= {p}DateTime
+                        AND is_active = 1
+                    ORDER BY
+                        eff_date DESC
+                ";
+      var parameters = new
+      {
+          Type = "MARKETING",
+          DateTime = dateTime
+      };
+
+      var result = await _command.GetRow<IncentiveScheme>(transaction, query, parameters);
+      return result;
+    }
+
     public async Task<List<IncentiveScheme>> GetRows(IDbTransaction transaction, string? keyword, int offset, int limit)
     {
       var p = db.Symbol();

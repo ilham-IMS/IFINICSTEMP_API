@@ -158,7 +158,7 @@ namespace Service
     }
 
     #region GetHTMLPreview
-    public async Task<string> GetHTMLPreview(string id, IncentiveCollection incentiveCollectionData)
+    public async Task<string> GetHTMLPreview(string[] ids, IncentiveCollection incentiveCollectionData)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -176,6 +176,34 @@ namespace Service
         string base64Image = Convert.ToBase64String(file?.Content!);
         string imageHtml = $"<img src=\"data:image/png;base64,{base64Image}\" alt=\"PT BOT FINANCE INDONESIA\" style=\"height: 50px;\" />";
 
+        var dataList = new List<AgreementCollection>();
+        var incentiveDataList = new List<IncentiveCollection>();
+        foreach (var id in ids)
+        {
+            var items = await _repoAgreementCollection.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
+            var incentiveItem = await _repo.GetRowByID(transaction, id);
+            if (incentiveItem != null)            {
+                incentiveDataList.Add(incentiveItem);
+            }
+            dataList.AddRange(items);
+        }
+
+        // Determine PeriodeFrom and PeriodeTo
+        string periodeFrom = incentiveCollectionData.PeriodeFrom ?? "-";
+        string periodeTo = incentiveCollectionData.PeriodeTo ?? "-";
+
+        if (string.IsNullOrEmpty(incentiveCollectionData.PeriodeFrom) && dataList.Count > 0)
+        {
+            var minPeriod = incentiveDataList.Min(x => x.IncentivePeriode);
+            periodeFrom = minPeriod?.ToString() ?? "-";
+        }
+
+        if (string.IsNullOrEmpty(incentiveCollectionData.PeriodeTo) && dataList.Count > 0)
+        {
+            var maxPeriod = incentiveDataList.Max(x => x.IncentivePeriode);
+            periodeTo = maxPeriod?.ToString() ?? "-";
+        }
+
         // Tambahan: Setup parameter untuk header
         var parameters = new Dictionary<string, string>
             {
@@ -184,8 +212,8 @@ namespace Service
                 { "PrintTime", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" },
                 { "CompanyName", incentiveCollectionData.CompanyName ?? "-" },
                 { "ImageLogo", imageHtml },
-                { "PeriodeFrom", incentiveCollectionData.IncentivePeriode ?? "-" },
-                { "PeriodeTo", incentiveCollectionData.IncentivePeriode ?? "-" }
+                { "PeriodeFrom", periodeFrom },
+                { "PeriodeTo", periodeTo }
             };
 
         foreach (var parameter in parameters)
@@ -193,8 +221,6 @@ namespace Service
           string placeholder = $"{{{{{parameter.Key}}}}}";
           htmlContent = htmlContent.Replace(placeholder, parameter.Value);
         }
-
-        var dataList = await _repoAgreementCollection.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
 
         string tableRows = string.Empty;
         var totalUnpaidAmount = 0m;
@@ -216,17 +242,12 @@ namespace Service
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CollectorName ?? "-"}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingName ?? "-"}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentivePeriod ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.UnpaidAmount ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.UnpaidDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.StartingDateHandling?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.DeadlineDateHandling?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentiveResult ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CollectedAmount ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.PaidCase ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CollectedPct * 100 ?? 0}%</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentivePct * 100 ?? 0}%</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentiveAmount ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.Remarks ?? ""}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.UnpaidAmount?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: center;"">{item.UnpaidDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.CollectedAmount?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.CollectedPct ?? 0}%</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.IncentivePct ?? 0}%</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.IncentiveAmount?.ToString("N2") ?? "0.00"}</td>
                       </tr>";
               No++;
               totalUnpaidAmount += item.UnpaidAmount ?? 0;
@@ -238,12 +259,11 @@ namespace Service
         {  
           tableRows += $@"<tr>
                           <td colspan=""5"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right; font-weight: bold;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold;"">{totalUnpaidAmount}</td>
-                          <td colspan=""4"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold;"">{totalCollectedAmount}</td>
-                         <td colspan=""3"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold;"">{totalIncentiveAmount}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold; text-align: right;"">{totalUnpaidAmount.ToString("N2") ?? "0.00"}</td>
+                          <td colspan=""1"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold; text-align: right;"">{totalCollectedAmount.ToString("N2") ?? "0.00"}</td>
+                         <td colspan=""2"" style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold; text-align: right;"">{totalIncentiveAmount.ToString("N2") ?? "0.00"}</td>
                       </tr>";
         }
 
@@ -262,7 +282,7 @@ namespace Service
     #endregion
 
     #region PrintDocument
-    public async Task<FileDoc> PrintDocument(string mimeType, string id, IncentiveCollection incentiveCollectionData)
+    public async Task<FileDoc> PrintDocument(string mimeType, string[] ids, IncentiveCollection incentiveCollectionData)
     {
       using var connection = _repo.GetDbConnection();
       using var transaction = connection.BeginTransaction();
@@ -281,6 +301,34 @@ namespace Service
         string base64Image = Convert.ToBase64String(file?.Content!);
         string imageHtml = $"<img src=\"data:image/png;base64,{base64Image}\" alt=\"PT BOT FINANCE INDONESIA\" style=\"height: 50px;\" />";
 
+        var dataList = new List<AgreementCollection>();
+        var incentiveDataList = new List<IncentiveCollection>();
+        foreach (var id in ids)
+        {
+            var items = await _repoAgreementCollection.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
+            var incentiveItem = await _repo.GetRowByID(transaction, id);
+            if (incentiveItem != null)            {
+                incentiveDataList.Add(incentiveItem);
+            }
+            dataList.AddRange(items);
+        }
+
+        // Determine PeriodeFrom and PeriodeTo
+        string periodeFrom = incentiveCollectionData.PeriodeFrom ?? "-";
+        string periodeTo = incentiveCollectionData.PeriodeTo ?? "-";
+
+        if (string.IsNullOrEmpty(incentiveCollectionData.PeriodeFrom) && dataList.Count > 0)
+        {
+            var minPeriod = incentiveDataList.Min(x => x.IncentivePeriode);
+            periodeFrom = minPeriod?.ToString() ?? "-";
+        }
+
+        if (string.IsNullOrEmpty(incentiveCollectionData.PeriodeTo) && dataList.Count > 0)
+        {
+            var maxPeriod = incentiveDataList.Max(x => x.IncentivePeriode);
+            periodeTo = maxPeriod?.ToString() ?? "-";
+        }
+
         // Tambahan: Setup parameter untuk header
         var parameters = new Dictionary<string, string>
             {
@@ -289,8 +337,8 @@ namespace Service
                 { "PrintTime", systemDate.ToString("hh:mm tt", CultureInfo.InvariantCulture) + " (GMT +7)" },
                 { "CompanyName", incentiveCollectionData.CompanyName ?? "-" },
                 { "ImageLogo", imageHtml },
-                { "PeriodeFrom", incentiveCollectionData.IncentivePeriode ?? "-" },
-                { "PeriodeTo", incentiveCollectionData.IncentivePeriode ?? "-" }
+                { "PeriodeFrom", periodeFrom },
+                { "PeriodeTo", periodeTo }
             };
 
         foreach (var parameter in parameters)
@@ -298,8 +346,6 @@ namespace Service
           string placeholder = $"{{{{{parameter.Key}}}}}";
           htmlContent = htmlContent.Replace(placeholder, parameter.Value);
         }
-
-        var dataList = await _repoAgreementCollection.GetRowsByIncentiveID(transaction, "", 0, int.MaxValue, id);
 
         string tableRows = string.Empty;
         var totalUnpaidAmount = 0m;
@@ -321,17 +367,12 @@ namespace Service
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CollectorName ?? "-"}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.MarketingName ?? "-"}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentivePeriod ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.UnpaidAmount ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.UnpaidDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.StartingDateHandling?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.DeadlineDateHandling?.ToString("dd-MMM-yyyy") ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentiveResult ?? "-"}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CollectedAmount ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.PaidCase ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.CollectedPct * 100 ?? 0}%</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentivePct * 100 ?? 0}%</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.IncentiveAmount ?? 0}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;"">{item.Remarks ?? ""}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.UnpaidAmount?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: center;"">{item.UnpaidDate?.ToString("dd-MMM-yyyy") ?? "-"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.CollectedAmount?.ToString("N2") ?? "0.00"}</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.CollectedPct ?? 0}%</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.IncentivePct ?? 0}%</td>
+                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right;"">{item.IncentiveAmount?.ToString("N2") ?? "0.00"}</td>
                       </tr>";
               No++;
               totalUnpaidAmount += item.UnpaidAmount ?? 0;
@@ -349,15 +390,10 @@ namespace Service
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; text-align: right; font-weight: bold;""></td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold;"">{totalUnpaidAmount}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold;"">{totalCollectedAmount}</td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
                           <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell; font-weight: bold;"">{totalIncentiveAmount}</td>
-                          <td style=""padding: 8px; border: 1px solid #000000; color: #333; display: table-cell;""></td>
                       </tr>";
         }
 
